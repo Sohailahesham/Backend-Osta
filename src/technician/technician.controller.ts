@@ -73,31 +73,42 @@ export class TechnicianController {
     ),
   )
   step5(
-  @Req() req,
-  @UploadedFiles()
-  files: {
-    personalImage?: Express.Multer.File[];
-    idFrontImage?: Express.Multer.File[];
-    idBackImage?: Express.Multer.File[];
-    certificateImage?: Express.Multer.File[];
-    criminalRecordImage?: Express.Multer.File[];
-  },
-) {
-  if (!files?.personalImage?.[0])
-    throw new BadRequestException('personalImage is required');
+    @Req() req,
+    @UploadedFiles()
+    files: {
+      personalImage?: Express.Multer.File[];
+      idFrontImage?: Express.Multer.File[];
+      idBackImage?: Express.Multer.File[];
+      certificateImage?: Express.Multer.File[];
+      criminalRecordImage?: Express.Multer.File[];
+    },
+  ) {
+    const requiredFiles = [
+      files?.personalImage?.[0],
+      files?.idFrontImage?.[0],
+      files?.idBackImage?.[0],
+    ];
 
-  if (!files?.idFrontImage?.[0])
-    throw new BadRequestException('idFrontImage is required');
+    if (requiredFiles.some((file) => !file)) {
+      Object.values(files || {})
+        .flat()
+        .forEach((file) => {
+          if (file?.path && fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
 
-  if (!files?.idBackImage?.[0])
-    throw new BadRequestException('idBackImage is required');
+      throw new BadRequestException(
+        'personalImage, idFrontImage and idBackImage are required',
+      );
+    }
 
-  return this.technicianService.updateStep5(req.user.userId, {
-    personalImage: files.personalImage[0].path,
-    idFrontImage: files.idFrontImage[0].path,
-    idBackImage: files.idBackImage[0].path,
-    certificateImage: files.certificateImage?.[0]?.path,
-    criminalRecordImage: files.criminalRecordImage?.[0]?.path,
-  });
-}
+    return this.technicianService.updateStep5(req.user.userId, {
+      personalImage: files.personalImage![0].path,
+      idFrontImage: files.idFrontImage![0].path,
+      idBackImage: files.idBackImage![0].path,
+      certificateImage: files.certificateImage?.[0]?.path,
+      criminalRecordImage: files.criminalRecordImage?.[0]?.path,
+    });
+  }
 }
