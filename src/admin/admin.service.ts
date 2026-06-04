@@ -105,7 +105,8 @@ export class AdminService {
 
     if (
       user.verificationStatus !== VerificationStatus.PENDING ||
-      user.currentStep !== 5
+      user.currentStep !== 5 ||
+      !user.isProfileComplete
     ) {
       throw new BadRequestException(
         'User is not pending or registration not completed',
