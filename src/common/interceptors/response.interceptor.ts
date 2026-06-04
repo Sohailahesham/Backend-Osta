@@ -11,6 +11,11 @@ export interface ApiResponse<T> {
   success: boolean;
   message: string;
   data: T;
+  meta?: {
+    total?: number;
+    page?: number;
+    limit?: number;
+  };
   timestamp: string;
 }
 
@@ -27,6 +32,7 @@ export class ResponseInterceptor<T>
         success: true,
         message: data?.message ?? 'Request successful',
         data: data?.data !== undefined ? data.data : data,
+        meta: data?.meta,
         timestamp: new Date().toISOString(),
       })),
     );

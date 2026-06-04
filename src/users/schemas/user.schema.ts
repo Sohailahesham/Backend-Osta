@@ -8,7 +8,14 @@ export type UserDocument = User & Document;
 export enum UserRole {
   CLIENT = 'client',
   TECHNICIAN = 'technician',
-  ADMIN='admin'
+  ADMIN = 'admin',
+}
+
+export enum Specialization {
+  PLUMBER = 'Plumber',
+  ELECTRICIAN = 'Electrician',
+  CARPENTER = 'Carpenter',
+  AC = 'Ac',
 }
 
 export enum VerificationStatus {
@@ -162,6 +169,21 @@ export class User {
 
   @Prop({ default: false })
   isProfileComplete: boolean;
+
+  @Prop({ default: true })
+  isAvailable: boolean;
+
+  @Prop({ default: 0 })
+  averageRating: number;
+
+  @Prop({ default: 0 })
+  totalReviews: number;
+
+  @Prop()
+  verifiedAt: Date;
+
+  @Prop()
+  rejectionReason: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
