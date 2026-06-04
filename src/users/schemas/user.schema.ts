@@ -1,7 +1,9 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type UserDocument = User & Document;
+
+/* ================= AUTH ENUMS ================= */
 
 export enum UserRole {
   CLIENT = 'client',
@@ -23,20 +25,73 @@ export enum VerificationStatus {
   REJECTED = 'rejected',
 }
 
+export enum AuthProvider {
+  LOCAL = 'local',
+  GOOGLE = 'google',
+}
+
+/* ================= TECHNICIAN SPECIALIZATION ================= */
+
+@Schema({ _id: false })
+export class TechnicianSpecialization {
+  @Prop({
+    type: Types.ObjectId,
+    ref: 'Category',
+    required: true,
+  })
+  categoryId: Types.ObjectId;
+
+  @Prop({
+    type: [{ type: Types.ObjectId, ref: 'ServiceEntity' }],
+    default: [],
+  })
+  serviceIds: Types.ObjectId[];
+}
+
+export const TechnicianSpecializationSchema = SchemaFactory.createForClass(
+  TechnicianSpecialization,
+);
+
 @Schema({ timestamps: true })
 export class User {
-  // Basic Information
-  @Prop({ required: true })
+  // ========== BASIC INFO ==========
+
+  @Prop({ required: true, trim: true })
   fullName: string;
 
-  @Prop({ required: true, unique: true, lowercase: true })
+  @Prop({
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  })
   email: string;
 
-  @Prop({ required: true })
-  password: string;
+  @Prop()
+  password?: string;
 
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+    unique: true,
+    trim: true,
+  })
   phone: string;
+
+  // ========== AUTH ==========
+
+  @Prop({
+    enum: AuthProvider,
+    default: AuthProvider.LOCAL,
+  })
+  provider: AuthProvider;
+
+  @Prop({ unique: true, sparse: true })
+  googleId?: string;
+
+  @Prop()
+  refreshToken?: string;
+
+  // ========== ROLE ==========
 
   @Prop({
     enum: UserRole,
@@ -44,25 +99,22 @@ export class User {
   })
   role: UserRole;
 
-  @Prop()
-  refreshToken: string;
+  // ========== LOCATION ==========
 
-  @Prop({ required: true })
+  @Prop()
   governorate: string;
 
-  @Prop({ required: true })
+  @Prop()
   city: string;
 
-  // Technician Step 2
+  // ========== TECHNICIAN DATA ==========
 
   @Prop({
-    type: [String],
-    enum: Specialization,
-    default: [],
+    type: TechnicianSpecializationSchema,
   })
-  specializations: Specialization[];
+  specialization: TechnicianSpecialization;
 
-  @Prop()
+  @Prop({ min: 0 })
   yearsOfExperience: number;
 
   @Prop({ default: false })
@@ -80,24 +132,31 @@ export class User {
   @Prop()
   endTime: string;
 
-  // Technician Step 3
-
+  // 
   @Prop({ default: [] })
   serviceAreas: string[];
 
   @Prop({ default: false })
   canWorkOutsideArea: boolean;
 
-  // Technician Step 4
+  // ========== FILES ==========
 
   @Prop()
   personalImage: string;
 
   @Prop()
-  idImage: string;
+  idFrontImage: string;
+
+  @Prop()
+  idBackImage: string;
 
   @Prop()
   certificateImage: string;
+
+  @Prop()
+  criminalRecordImage?: string;
+
+  // ========== TRACKING ==========
 
   @Prop({ default: 1 })
   currentStep: number;
