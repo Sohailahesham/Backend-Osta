@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
 import { ServiceEntity, ServiceDocument } from './schemas/service.schema';
@@ -9,7 +14,8 @@ import { CategoriesService } from '../categories/categories.service';
 @Injectable()
 export class ServicesService {
   constructor(
-    @InjectModel(ServiceEntity.name) private serviceModel: Model<ServiceDocument>,
+    @InjectModel(ServiceEntity.name)
+    private serviceModel: Model<ServiceDocument>,
     private categoriesService: CategoriesService,
   ) {}
 
@@ -17,11 +23,18 @@ export class ServicesService {
     // validate category exists
     await this.categoriesService.findOne(dto.category);
 
-    const existing = await this.serviceModel.findOne({ key: dto.key.toUpperCase() });
-    if (existing) throw new ConflictException(`Service with key "${dto.key}" already exists`);
+    const existing = await this.serviceModel.findOne({
+      key: dto.key.toUpperCase(),
+    });
+    if (existing)
+      throw new ConflictException(
+        `Service with key "${dto.key}" already exists`,
+      );
 
     if (dto.priceRange.min > dto.priceRange.max)
-      throw new BadRequestException('priceRange.min cannot be greater than max');
+      throw new BadRequestException(
+        'priceRange.min cannot be greater than max',
+      );
 
     const service = await new this.serviceModel(dto).save();
 
@@ -41,7 +54,6 @@ export class ServicesService {
     return this.serviceModel
       .find(filter)
       .populate('category', 'key name image')
-      .select('-comments')
       .sort({ createdAt: -1 })
       .lean();
   }
@@ -60,7 +72,9 @@ export class ServicesService {
 
     if (dto.priceRange?.min !== undefined && dto.priceRange?.max !== undefined)
       if (dto.priceRange.min > dto.priceRange.max)
-        throw new BadRequestException('priceRange.min cannot be greater than max');
+        throw new BadRequestException(
+          'priceRange.min cannot be greater than max',
+        );
 
     const updated = await this.serviceModel
       .findByIdAndUpdate(id, dto, { new: true, runValidators: true })
@@ -111,21 +125,29 @@ export class ServicesService {
     (service.comments as any[]).push({ ...dto, createdAt: new Date() });
 
     const total = service.comments!.length;
-    const sum = (service.comments as any[]).reduce((acc, c) => acc + c.rating, 0);
+    const sum = (service.comments as any[]).reduce(
+      (acc, c) => acc + c.rating,
+      0,
+    );
     service.averageRating = Math.round((sum / total) * 10) / 10;
     service.totalRatings = total;
 
     return service.save();
   }
 
-  async removeComment(serviceId: string, commentId: string): Promise<ServiceDocument> {
+  async removeComment(
+    serviceId: string,
+    commentId: string,
+  ): Promise<ServiceDocument> {
     const service = await this.serviceModel.findById(serviceId);
-    if (!service) throw new NotFoundException(`Service #${serviceId} not found`);
+    if (!service)
+      throw new NotFoundException(`Service #${serviceId} not found`);
 
     const index = (service.comments as any[]).findIndex(
       (c) => c._id?.toString() === commentId,
     );
-    if (index === -1) throw new NotFoundException(`Comment #${commentId} not found`);
+    if (index === -1)
+      throw new NotFoundException(`Comment #${commentId} not found`);
 
     (service.comments as any[]).splice(index, 1);
 
@@ -133,7 +155,9 @@ export class ServicesService {
     service.averageRating =
       total > 0
         ? Math.round(
-            ((service.comments as any[]).reduce((acc, c) => acc + c.rating, 0) / total) * 10,
+            ((service.comments as any[]).reduce((acc, c) => acc + c.rating, 0) /
+              total) *
+              10,
           ) / 10
         : 0;
     service.totalRatings = total;
