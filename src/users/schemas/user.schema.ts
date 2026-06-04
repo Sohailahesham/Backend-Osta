@@ -6,6 +6,7 @@ export type UserDocument = User & Document;
 export enum UserRole {
   CLIENT = 'client',
   TECHNICIAN = 'technician',
+  ADMIN = 'admin',
 }
 
 export enum Specialization {
@@ -53,7 +54,7 @@ export class User {
   city: string;
 
   // Technician Step 2
-  
+
   @Prop({
     type: [String],
     enum: Specialization,
@@ -98,7 +99,6 @@ export class User {
   @Prop()
   certificateImage: string;
 
-
   @Prop({ default: 1 })
   currentStep: number;
 
@@ -110,6 +110,21 @@ export class User {
 
   @Prop({ default: false })
   isProfileComplete: boolean;
+
+  @Prop({ default: true })
+  isAvailable: boolean;
+
+  @Prop({ default: 0 })
+  averageRating: number;
+
+  @Prop({ default: 0 })
+  totalReviews: number;
+
+  @Prop()
+  verifiedAt: Date;
+
+  @Prop()
+  rejectionReason: string;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
