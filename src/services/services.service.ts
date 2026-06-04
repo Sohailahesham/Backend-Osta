@@ -164,4 +164,12 @@ export class ServicesService {
 
     return service.save();
   }
+  async findMostCommon(): Promise<ServiceDocument[]> {
+    return this.serviceModel
+      .find({ isActive: true })
+      .populate('category', 'key name image')
+      .sort({ totalRatings: -1 })
+      .limit(6)
+      .lean() as unknown as ServiceDocument[];
+  }
 }
