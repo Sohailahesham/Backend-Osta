@@ -1,0 +1,22 @@
+import { Expose, Transform } from 'class-transformer';
+
+export class AdminUserResponseDto {
+  @Expose()
+  @Transform(({ obj }) => obj._id?.toString())
+  _id: string;
+
+  @Expose()
+  fullName: string;
+
+  @Expose()
+  email: string;
+
+  @Expose()
+  phone: string;
+
+  @Expose()
+  role: string;
+
+  @Expose()
+  createdAt: Date;
+}
