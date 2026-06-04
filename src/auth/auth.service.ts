@@ -21,32 +21,27 @@ export class AuthService {
   ) {}
 
   async registerClient(dto: RegisterDto) {
-    await this.checkEmail(dto.email);
-    this.checkPasswords(dto.password, dto.confirmPassword);
-    const hashed = await bcrypt.hash(dto.password, 10);
-
     try {
+      await this.checkEmail(dto.email);
+      this.checkPasswords(dto.password, dto.confirmPassword);
+
+      const hashed = await bcrypt.hash(dto.password, 10);
       const user = await this.userModel.create({
         fullName: dto.fullName,
         email: dto.email,
         password: hashed,
         phone: dto.phone,
         role: UserRole.CLIENT,
-        city: dto.city,
         governorate: dto.governorate,
+        city: dto.city,
       });
+
       return this.signTokens(user);
-    } catch (error: unknown) {
-      if (error && typeof error === 'object' && 'name' in error) {
-        const err = error as any;
-
-        if (err.name === 'ValidationError') {
-          const messages = Object.values(err.errors).map((e: any) => e.message);
-
-          throw new BadRequestException(messages);
-        }
+    } catch (error:any) {
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        throw new BadRequestException(`${field} already exists`);
       }
-
       throw error;
     }
   }
@@ -91,7 +86,7 @@ export class AuthService {
     const user = await this.userModel.findOne({ email: dto.email });
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    const isMatch = await bcrypt.compare(dto.password, user.password);
+    const isMatch = await bcrypt.compare(dto.password, user.password!);
     if (!isMatch) throw new UnauthorizedException('Invalid credentials');
 
     return this.signTokens(user);

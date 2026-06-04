@@ -1,6 +1,12 @@
 import {
-  Controller, Post, Body,
-  UseGuards, Req, UseInterceptors, UploadedFiles,
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  UseInterceptors,
+  UploadedFiles,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -10,9 +16,11 @@ import { TechnicianService } from './technician.service';
 import { Step2Dto } from './dto/step2.dto';
 import { Step3Dto } from './dto/step3.dto';
 import { Step4Dto } from './dto/step4.dto';
+import * as fs from 'fs';
+import { TechnicianGuard } from 'src/auth/guards/technician.guard';
 
 @Controller('technician')
-@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthGuard('jwt'), TechnicianGuard)
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 
@@ -36,33 +44,60 @@ export class TechnicianController {
     FileFieldsInterceptor(
       [
         { name: 'personalImage', maxCount: 1 },
-        { name: 'idImage', maxCount: 1 },
+        { name: 'idFrontImage', maxCount: 1 },
+        { name: 'idBackImage', maxCount: 1 },
         { name: 'certificateImage', maxCount: 1 },
+        { name: 'criminalRecordImage', maxCount: 1 },
       ],
       {
         storage: diskStorage({
-          destination: './uploads/technician',
+          destination: (req: any, file, cb) => {
+            const userId = req.user.userId;
+            const uploadPath = `./uploads/technician/${userId}`;
+
+            if (!fs.existsSync(uploadPath)) {
+              fs.mkdirSync(uploadPath, { recursive: true });
+            }
+
+            cb(null, uploadPath);
+          },
           filename: (req, file, cb) => {
             const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
-            cb(null, `${unique}${extname(file.originalname)}`);
+            cb(
+              null,
+              `${file.fieldname}-${unique}${extname(file.originalname)}`,
+            );
           },
         }),
       },
     ),
   )
   step5(
-    @Req() req,
-    @UploadedFiles()
-    files: {
-      personalImage?: Express.Multer.File[];
-      idImage?: Express.Multer.File[];
-      certificateImage?: Express.Multer.File[];
-    },
-  ) {
-    return this.technicianService.updateStep5(req.user.userId, {
-      personalImage: files.personalImage?.[0]?.path,
-      idImage: files.idImage?.[0]?.path,
-      certificateImage: files.certificateImage?.[0]?.path,
-    });
-  }
+  @Req() req,
+  @UploadedFiles()
+  files: {
+    personalImage?: Express.Multer.File[];
+    idFrontImage?: Express.Multer.File[];
+    idBackImage?: Express.Multer.File[];
+    certificateImage?: Express.Multer.File[];
+    criminalRecordImage?: Express.Multer.File[];
+  },
+) {
+  if (!files?.personalImage?.[0])
+    throw new BadRequestException('personalImage is required');
+
+  if (!files?.idFrontImage?.[0])
+    throw new BadRequestException('idFrontImage is required');
+
+  if (!files?.idBackImage?.[0])
+    throw new BadRequestException('idBackImage is required');
+
+  return this.technicianService.updateStep5(req.user.userId, {
+    personalImage: files.personalImage[0].path,
+    idFrontImage: files.idFrontImage[0].path,
+    idBackImage: files.idBackImage[0].path,
+    certificateImage: files.certificateImage?.[0]?.path,
+    criminalRecordImage: files.criminalRecordImage?.[0]?.path,
+  });
+}
 }

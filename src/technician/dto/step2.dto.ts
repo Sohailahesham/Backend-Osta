@@ -1,9 +1,11 @@
-import { IsArray, IsEnum, IsNotEmpty } from 'class-validator';
-import { Specialization } from '../../users/schemas/user.schema';
+import { IsMongoId, IsArray, IsNotEmpty } from 'class-validator';
 
 export class Step2Dto {
-  @IsArray()
   @IsNotEmpty()
-  @IsEnum(Specialization, { each: true, message: 'Invalid specialization' })
-  specializations: Specialization[];
+  @IsMongoId({ message: 'Invalid category id' })
+  categoryId: string;
+
+  @IsArray()
+  @IsMongoId({ each: true, message: 'Invalid service id' })
+  serviceIds: string[];
 }
