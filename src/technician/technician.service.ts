@@ -17,6 +17,8 @@ import {
   Category,
   CategoryDocument,
 } from 'src/categories/schemas/category.schema';
+import { plainToInstance } from 'class-transformer';
+import { TechnicianDataDto } from './dto/tech-data.dto';
 
 @Injectable()
 export class TechnicianService {
@@ -26,6 +28,12 @@ export class TechnicianService {
     private serviceModel: Model<ServiceDocument>,
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
   ) {}
+
+  private toTechnicianDataDto(data: any) {
+    return plainToInstance(TechnicianDataDto, data, {
+      excludeExtraneousValues: true,
+    });
+  }
 
   async updateStep2(userId: string, dto: Step2Dto) {
     const user = await this.userModel.findById(userId);
@@ -91,8 +99,8 @@ export class TechnicianService {
       personalImage?: string;
       idFrontImage?: string;
       idBackImage?: string;
-      certificateImage?: string |undefined;
-      criminalRecordImage?: string | undefined; 
+      certificateImage?: string | undefined;
+      criminalRecordImage?: string | undefined;
     },
   ) {
     const user = await this.userModel.findByIdAndUpdate(
@@ -110,6 +118,17 @@ export class TechnicianService {
       message: 'Registration complete! Awaiting verification.',
       isProfileComplete: user.isProfileComplete,
       verificationStatus: user.verificationStatus,
+    };
+  }
+
+  async getTechData(userId: string) {
+    const user = await this.userModel.findById(userId).lean().exec();
+    if (!user) throw new NotFoundException('User not found');
+    if (user.currentStep !== 5)
+      throw new BadRequestException('Registration not completed');
+    return {
+      message: 'Technician data fetched successfully',
+      data: this.toTechnicianDataDto(user),
     };
   }
 }
