@@ -176,6 +176,22 @@ export class User {
 
   @Prop()
   rejectionReason: string;
+
+  // for verification
+  @Prop()
+  verificationToken?: string;
+
+  @Prop()
+  verificationTokenExpires?: Date;
+
+  @Prop({ default: false })
+  isVerified: boolean;
+
+  @Prop()
+  otp?: string;
+
+  @Prop()
+  otpExpires?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

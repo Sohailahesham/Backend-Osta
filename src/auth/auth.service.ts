@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   ConflictException,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -12,12 +13,19 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
 import { JwtService } from '@nestjs/jwt';
+import { ResetPasswordDto } from './dto/reset-pass.dto';
+import { MailService } from 'src/mail/mail.service';
+import { ForgetPasswordDto } from './dto/forgetPass.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { randomBytes } from 'crypto';
+
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private jwtService: JwtService,
+    private mailService: MailService,
   ) {}
 
   async registerClient(dto: RegisterDto) {
@@ -37,7 +45,7 @@ export class AuthService {
       });
 
       return this.signTokens(user);
-    } catch (error:any) {
+    } catch (error: any) {
       if (error.code === 11000) {
         const field = Object.keys(error.keyPattern)[0];
         throw new BadRequestException(`${field} already exists`);
@@ -95,7 +103,7 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
+        secret: process.env.JWT_REFRESH_SECRET,
       });
 
       const user = await this.userModel.findById(payload.sub);
@@ -106,8 +114,16 @@ export class AuthService {
       if (!isMatch) throw new UnauthorizedException('Invalid refresh token');
 
       return this.signTokens(user);
-    } catch {
-      throw new UnauthorizedException('Invalid or expired refresh token');
+    } catch (error: any) {
+      if (error?.name === 'TokenExpiredError')
+        throw new UnauthorizedException(
+          'Refresh token expired, please login again',
+        );
+
+      if (error?.name === 'JsonWebTokenError')
+        throw new UnauthorizedException('Invalid refresh token');
+
+      throw error;
     }
   }
 
@@ -153,5 +169,80 @@ export class AuthService {
   private checkPasswords(pass: string, confirm: string) {
     if (pass !== confirm)
       throw new BadRequestException('Passwords do not match');
+  }
+
+  async forgetPassword(dto: ForgetPasswordDto) {
+    const user = await this.userModel.findOne({ email: dto.email });
+    if (!user) throw new NotFoundException('Email not found');
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+
+    await this.userModel.findByIdAndUpdate(user._id, { otp, otpExpires });
+    await this.mailService.sendOtp(user.email, otp);
+
+    return { message: 'OTP sent to your email' ,data:null };
+  }
+
+  async verifyOtp(dto: VerifyOtpDto) {
+    const user = await this.userModel.findOne({ email: dto.email });
+    if (!user) throw new NotFoundException('Email not found');
+
+    if (user.otp !== dto.otp) throw new BadRequestException('Invalid OTP');
+
+    if (user.otpExpires! < new Date())
+      throw new BadRequestException('OTP expired');
+
+    await this.userModel.findByIdAndUpdate(user._id, {
+      otp: null,
+      otpExpires: null,
+    });
+
+    return { message: 'OTP verified successfully' , data:null };
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    if (dto.newPassword !== dto.confirmPassword)
+      throw new BadRequestException('Passwords do not match');
+
+    const user = await this.userModel.findOne({ email: dto.email });
+    if (!user) throw new NotFoundException('Email not found');
+
+    const hashed = await bcrypt.hash(dto.newPassword, 10);
+    await this.userModel.findByIdAndUpdate(user._id, { password: hashed });
+
+    return { message: 'Password reset successfully' , data: null };
+  }
+
+  async sendVerificationEmail(userId: string) {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found')
+    if (user.isVerified)
+      throw new BadRequestException('Email already verified');
+    const token = randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.userModel.findByIdAndUpdate(user._id, {
+      verificationToken: token,
+      verificationTokenExpires: expires,
+    });
+
+    await this.mailService.sendVerificationEmail(user.email, token);
+    return { message: 'Verification email sent successfully'};
+  }
+
+  async verifyEmail(token: string) {
+    const user = await this.userModel.findOne({ verificationToken: token });
+    if (!user) return this.mailService.getVerifiedHtml(false);
+    if (user.verificationTokenExpires! < new Date())
+      return this.mailService.getVerifiedHtml(false);
+
+    await this.userModel.findByIdAndUpdate(user._id, {
+      isVerified: true,
+      verificationToken: null,
+      verificationTokenExpires: null,
+    });
+
+    return this.mailService.getVerifiedHtml(true);
   }
 }
