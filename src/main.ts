@@ -14,7 +14,10 @@ async function bootstrap() {
   );
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
-  app.enableCors();
+  app.enableCors({
+    origin: ['http://localhost:3001', 'http://localhost:3000'],
+    credentials: true,
+  });
   await app.listen(3000);
   console.log('Server running on http://localhost:3000');
 }
