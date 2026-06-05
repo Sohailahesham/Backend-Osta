@@ -14,6 +14,8 @@ import {
 } from 'src/users/schemas/user.schema';
 import { AdminTechnicianDto } from './dto/admin-technician-response.dto';
 import { AdminUserResponseDto } from './dto/admin-user-response.dto';
+import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class AdminService {
@@ -35,39 +37,69 @@ export class AdminService {
   }
 
   //* get all users with filtering by role
-  async getAllUsers(role?: UserRole) {
+  async getAllUsers(query: AdminUsersQueryDto) {
+    const { page, limit, role } = query;
     const filter = role ? { role } : {};
+    const skip = (page - 1) * limit;
 
-    const users = await this.userModel
-    .find(filter)
-    .sort({ createdAt: -1 })
-    .lean()
-    .exec();
+    const [total, users] = await Promise.all([
+      this.userModel.countDocuments(filter),
+      this.userModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    if (page >= totalPages) throw new NotFoundException('Page not found');
 
     return {
       message: 'Users retrieved successfully',
       data: this.toAdminUserDto(users),
       meta: {
-        total: users.length,
+        page,
+        limit,
+        total,
+        totalPages,
       },
     };
   }
 
   //* get all pending technicians
-  async getPendingTechnicians() {
-    const techs = await this.userModel
-    .find({
+  async getPendingTechnicians(query: PaginationDto) {
+    const { page, limit } = query;
+    const filter = {
       role: UserRole.TECHNICIAN,
       verificationStatus: VerificationStatus.PENDING,
-    })
-    .lean()
-    .exec();
+    };
+    const skip = (page - 1) * limit;
+
+    const [total, techs] = await Promise.all([
+      this.userModel.countDocuments(filter),
+      this.userModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+    if (page >= totalPages) throw new NotFoundException('Page not found');
 
     return {
       message: 'Pending technicians retrieved successfully',
       data: this.toAdminTechnicianDto(techs),
       meta: {
-        total: techs.length,
+        page,
+        limit,
+        total,
+        totalPages,
       },
     };
   }
@@ -114,17 +146,17 @@ export class AdminService {
     }
 
     const updatedTechnician = await this.userModel
-    .findByIdAndUpdate(
-      id,
-      {
-        verificationStatus: VerificationStatus.APPROVED,
-        verifiedAt: new Date(),
-        rejectionReason: null,
-      },
-      { new: true },
-    )
-    .lean()
-    .exec();
+      .findByIdAndUpdate(
+        id,
+        {
+          verificationStatus: VerificationStatus.APPROVED,
+          verifiedAt: new Date(),
+          rejectionReason: null,
+        },
+        { new: true },
+      )
+      .lean()
+      .exec();
 
     return {
       message: 'Technician approved successfully',
@@ -153,16 +185,16 @@ export class AdminService {
     }
 
     const updatedTechnician = await this.userModel
-    .findByIdAndUpdate(
-      id,
-      {
-        verificationStatus: VerificationStatus.REJECTED,
-        rejectionReason: reason,
-      },
-      { new: true },
-    )
-    .lean()
-    .exec();
+      .findByIdAndUpdate(
+        id,
+        {
+          verificationStatus: VerificationStatus.REJECTED,
+          rejectionReason: reason,
+        },
+        { new: true },
+      )
+      .lean()
+      .exec();
 
     return {
       message: 'Technician rejected successfully',
