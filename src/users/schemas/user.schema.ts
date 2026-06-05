@@ -11,13 +11,6 @@ export enum UserRole {
   ADMIN = 'admin',
 }
 
-export enum Specialization {
-  PLUMBER = 'Plumber',
-  ELECTRICIAN = 'Electrician',
-  CARPENTER = 'Carpenter',
-  AC = 'Ac',
-}
-
 export enum VerificationStatus {
   INCOMPLETE = 'incomplete',
   PENDING = 'pending',
@@ -132,7 +125,6 @@ export class User {
   @Prop()
   endTime: string;
 
-  // 
   @Prop({ default: [] })
   serviceAreas: string[];
 
