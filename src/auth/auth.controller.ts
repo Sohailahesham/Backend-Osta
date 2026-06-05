@@ -70,10 +70,12 @@ export class AuthController {
   }
 
   @Get('verify-email')
-  async verifyEmail(@Query('token') token: string, @Res() res: express.Response) {
+  async verifyEmail(
+    @Query('token') token: string,
+    @Res() res: express.Response,
+  ) {
     const html = await this.authService.verifyEmail(token);
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
   }
-  
 }
