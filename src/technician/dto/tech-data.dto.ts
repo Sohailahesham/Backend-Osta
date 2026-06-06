@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Expose, Transform } from 'class-transformer';
-import { TechnicianSpecialization } from 'src/users/schemas/user.schema';
+import { TechnicianSpecialization } from 'src/technician/schemas/technician.schema';
 
 export class TechnicianDataDto {
   @Expose()

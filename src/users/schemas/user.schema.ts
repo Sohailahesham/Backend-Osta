@@ -1,9 +1,8 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
+import * as mongoose from 'mongoose';
 
 export type UserDocument = User & Document;
-
-/* ================= AUTH ENUMS ================= */
 
 export enum UserRole {
   CLIENT = 'client',
@@ -11,39 +10,15 @@ export enum UserRole {
   ADMIN = 'admin',
 }
 
-export enum VerificationStatus {
-  INCOMPLETE = 'incomplete',
-  PENDING = 'pending',
-  APPROVED = 'approved',
-  REJECTED = 'rejected',
-}
-
 export enum AuthProvider {
   LOCAL = 'local',
   GOOGLE = 'google',
 }
 
-/* ================= TECHNICIAN SPECIALIZATION ================= */
-
-@Schema({ _id: false })
-export class TechnicianSpecialization {
-  @Prop({
-    type: Types.ObjectId,
-    ref: 'Category',
-    required: true,
-  })
-  categoryId: Types.ObjectId;
-
-  @Prop({
-    type: [{ type: Types.ObjectId, ref: 'ServiceEntity' }],
-    default: [],
-  })
-  serviceIds: Types.ObjectId[];
+export enum Gender {
+  MALE = 'male',
+  FEMALE = 'female',
 }
-
-export const TechnicianSpecializationSchema = SchemaFactory.createForClass(
-  TechnicianSpecialization,
-);
 
 @Schema({ timestamps: true })
 export class User {
@@ -52,29 +27,22 @@ export class User {
   @Prop({ required: true, trim: true })
   fullName: string;
 
-  @Prop({
-    required: true,
-    unique: true,
-    lowercase: true,
-    trim: true,
-  })
+  @Prop({ required: true, unique: true, lowercase: true, trim: true })
   email: string;
 
   @Prop()
   password?: string;
 
-  @Prop({
-    unique: true,
-    trim: true,
-  })
-  phone?: string;
+  @Prop({ unique: true, sparse: true, trim: true })
+  phone: string;
+
+
+  @Prop({ enum: Gender })
+  gender: Gender;
 
   // ========== AUTH ==========
 
-  @Prop({
-    enum: AuthProvider,
-    default: AuthProvider.LOCAL,
-  })
+  @Prop({ enum: AuthProvider, default: AuthProvider.LOCAL })
   provider: AuthProvider;
 
   @Prop({ unique: true, sparse: true })
@@ -85,10 +53,7 @@ export class User {
 
   // ========== ROLE ==========
 
-  @Prop({
-    enum: UserRole,
-    default: UserRole.CLIENT,
-  })
+  @Prop({ enum: UserRole, default: UserRole.CLIENT })
   role: UserRole;
 
   // ========== LOCATION ==========
@@ -99,84 +64,8 @@ export class User {
   @Prop()
   city: string;
 
-  // ========== TECHNICIAN DATA ==========
+  // ========== EMAIL VERIFICATION ==========
 
-  @Prop({
-    type: TechnicianSpecializationSchema,
-  })
-  specialization: TechnicianSpecialization;
-
-  @Prop({ min: 0 })
-  yearsOfExperience: number;
-
-  @Prop({ default: false })
-  hasTools: boolean;
-
-  @Prop({ default: false })
-  hasTransportation: boolean;
-
-  @Prop({ default: [] })
-  workingDays: string[];
-
-  @Prop()
-  startTime: string;
-
-  @Prop()
-  endTime: string;
-
-  @Prop({ default: [] })
-  serviceAreas: string[];
-
-  @Prop({ default: false })
-  canWorkOutsideArea: boolean;
-
-  // ========== FILES ==========
-
-  @Prop()
-  personalImage: string;
-
-  @Prop()
-  idFrontImage: string;
-
-  @Prop()
-  idBackImage: string;
-
-  @Prop()
-  certificateImage: string;
-
-  @Prop()
-  criminalRecordImage?: string;
-
-  // ========== TRACKING ==========
-
-  @Prop({ default: 1 })
-  currentStep: number;
-
-  @Prop({
-    enum: VerificationStatus,
-    default: VerificationStatus.INCOMPLETE,
-  })
-  verificationStatus: VerificationStatus;
-
-  @Prop({ default: false })
-  isProfileComplete: boolean;
-
-  @Prop({ default: true })
-  isAvailable: boolean;
-
-  @Prop({ default: 0 })
-  averageRating: number;
-
-  @Prop({ default: 0 })
-  totalReviews: number;
-
-  @Prop()
-  verifiedAt: Date;
-
-  @Prop()
-  rejectionReason: string;
-
-  // for verification
   @Prop()
   verificationToken?: string;
 
@@ -194,3 +83,10 @@ export class User {
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);
+
+UserSchema.pre('findOneAndDelete', async function () {
+  const user = await this.model.findOne(this.getFilter());
+  if (user && user.role === 'technician') {
+    await mongoose.model('Technician').findOneAndDelete({ userId: user._id });
+  }
+});

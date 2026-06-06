@@ -4,7 +4,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { AiModule } from '../ai/ai.module';
 import { ServicesModule } from '../services/services.module';
 import { CategoriesModule } from '../categories/categories.module';
-import { User, UserSchema } from '../users/schemas/user.schema';import { ChatController } from './chat/chat.controller';
+import { User, UserSchema } from '../users/schemas/user.schema';
+import { ChatController } from './chat/chat.controller';
 import { ChatService } from './chat/chat.service';
 import { ClassificationService } from './classification/classification.service';
 import { EmergencyService } from './emergency/emergency.service';
@@ -14,13 +15,16 @@ import { GuardrailsService } from './guardrails/guardrails.service';
 import { AnalyticsService } from './analytics/analytics.service';
 import { MemoryService } from './memory/memory.service';
 import { LoggerService } from 'src/common/logging/logger.service';
+import { Technician, TechnicianSchema } from 'src/technician/schemas/technician.schema';
 
 @Module({
   imports: [
     AiModule,        // GroqProvider, OpenAiProvider, AiOrchestratorService
     ServicesModule,  // exports ServicesService → used by CatalogService
     CategoriesModule, // exports CategoriesService → used by CatalogService
-    MongooseModule.forFeature([{ name: User.name, schema: UserSchema }]), // for technician queries
+    MongooseModule.forFeature([{ name: User.name, schema: UserSchema },
+      { name: Technician.name, schema: TechnicianSchema },]), // for technician queries
+  
   ],
   controllers: [ChatController],
   providers: [

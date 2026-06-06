@@ -1,42 +1,21 @@
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
+  IsOptional,
   IsString,
   Matches,
   MinLength,
-  registerDecorator,
-  ValidationOptions,
-  ValidationArguments,
 } from 'class-validator';
-
-export function MatchField(property: string, options?: ValidationOptions) {
-  return (object: object, propertyName: string) => {
-    registerDecorator({
-      name: 'matchField',
-      target: object.constructor,
-      propertyName,
-      constraints: [property],
-      options: {
-        message: `${propertyName} must match ${property}`,
-        ...options,
-      },
-      validator: {
-        validate(value: unknown, args: ValidationArguments) {
-          const [relatedPropertyName] = args.constraints as [string];
-          const relatedValue = (args.object as Record<string, unknown>)[relatedPropertyName];
-          return value === relatedValue;
-        },
-      },
-    });
-  };
-}
+import { Gender } from '../../users/schemas/user.schema';
 
 export class RegisterDto {
   @IsNotEmpty()
   @IsString()
+  @MinLength(3)
   fullName: string;
 
-  @IsEmail()
+  @IsEmail({}, { message: 'Please enter a valid email address' })
   email: string;
 
   @IsNotEmpty()
@@ -44,7 +23,6 @@ export class RegisterDto {
   password: string;
 
   @IsNotEmpty()
-  @MatchField('password', { message: 'Passwords do not match' })
   confirmPassword: string;
 
   @IsNotEmpty()
@@ -58,4 +36,8 @@ export class RegisterDto {
   @IsNotEmpty()
   @IsString()
   city: string;
+
+  @IsNotEmpty()
+  @IsEnum(Gender, { message: 'Gender must be male or female' })
+  gender: Gender;
 }

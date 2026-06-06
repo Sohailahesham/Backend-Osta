@@ -10,6 +10,7 @@ import { CategoriesModule } from './categories/categories.module';
 import { ServicesModule } from './services/services.module';
 import { AdminModule } from './admin/admin.module';
 import { AssistantModule } from './assistant/assistant.module';
+import { RequestModule } from './request/request.module';
 import { EmergencyModule } from './emergency/emergency.module';
 import { ReviewsModule } from './reviews/reviews.module';
 
@@ -30,6 +31,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     ServicesModule,
     AdminModule,
     AssistantModule,
+    RequestModule,
     EmergencyModule,
     ReviewsModule,
   ],

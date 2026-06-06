@@ -1,17 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { User, UserDocument, UserRole, VerificationStatus } from 'src/users/schemas/user.schema';
+import { User, UserDocument, UserRole } from 'src/users/schemas/user.schema';
 import { ServicesService } from 'src/services/services.service';
 import { CategoriesService } from 'src/categories/categories.service';
+import {
+  Technician,
+  TechnicianDocument,
+  VerificationStatus,
+} from 'src/technician/schemas/technician.schema';
 
 @Injectable()
 export class CatalogService {
   constructor(
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
+    @InjectModel(Technician.name)
+    private readonly technicianModel: Model<TechnicianDocument>,
     private readonly servicesService: ServicesService,
     private readonly categoriesService: CategoriesService,
-  ) { }
+  ) {}
 
   /**
    * Returns all active services from MongoDB.
@@ -40,19 +47,20 @@ export class CatalogService {
     const categoryId = (category as any)._id as Types.ObjectId;
 
     // 2. Query approved, available technicians specialised in this category
-    const technicians = await this.userModel
-      .find({
-        role: UserRole.TECHNICIAN,
-        verificationStatus: VerificationStatus.PENDING,
-        // isAvailable: true,
+
+    const technicians = await this.technicianModel
+    .find({
+      verificationStatus: VerificationStatus.APPROVED,
+      isAvailable: true,
         'specialization.categoryId': categoryId,
       })
-      .select('fullName averageRating totalReviews serviceAreas personalImage')
+      .populate('userId', 'fullName')
+      .select('averageRating totalReviews serviceAreas personalImage')
       .lean();
 
     return technicians.map((t) => ({
       id: (t as any)._id,
-      name: t.fullName,
+      name: (t.userId as any)?.fullName,
       rating: t.averageRating,
       totalReviews: t.totalReviews,
       serviceAreas: t.serviceAreas,
