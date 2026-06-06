@@ -45,17 +45,17 @@ export class AdminService {
     const [total, users] = await Promise.all([
       this.userModel.countDocuments(filter),
       this.userModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
     ]);
 
     const totalPages = Math.ceil(total / limit);
 
-    if (page >= totalPages) throw new NotFoundException('Page not found');
+    if (page > totalPages) throw new NotFoundException('Page not found');
 
     return {
       message: 'Users retrieved successfully',
@@ -81,16 +81,16 @@ export class AdminService {
     const [total, techs] = await Promise.all([
       this.userModel.countDocuments(filter),
       this.userModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
     ]);
 
     const totalPages = Math.ceil(total / limit);
-    if (page >= totalPages) throw new NotFoundException('Page not found');
+    if (page > totalPages) throw new NotFoundException('Page not found');
 
     return {
       message: 'Pending technicians retrieved successfully',
@@ -146,17 +146,17 @@ export class AdminService {
     }
 
     const updatedTechnician = await this.userModel
-      .findByIdAndUpdate(
-        id,
-        {
-          verificationStatus: VerificationStatus.APPROVED,
-          verifiedAt: new Date(),
-          rejectionReason: null,
-        },
-        { new: true },
-      )
-      .lean()
-      .exec();
+    .findByIdAndUpdate(
+      id,
+      {
+        verificationStatus: VerificationStatus.APPROVED,
+        verifiedAt: new Date(),
+        rejectionReason: null,
+      },
+      { new: true },
+    )
+    .lean()
+    .exec();
 
     return {
       message: 'Technician approved successfully',
@@ -185,16 +185,16 @@ export class AdminService {
     }
 
     const updatedTechnician = await this.userModel
-      .findByIdAndUpdate(
-        id,
-        {
-          verificationStatus: VerificationStatus.REJECTED,
-          rejectionReason: reason,
-        },
-        { new: true },
-      )
-      .lean()
-      .exec();
+    .findByIdAndUpdate(
+      id,
+      {
+        verificationStatus: VerificationStatus.REJECTED,
+        rejectionReason: reason,
+      },
+      { new: true },
+    )
+    .lean()
+    .exec();
 
     return {
       message: 'Technician rejected successfully',
