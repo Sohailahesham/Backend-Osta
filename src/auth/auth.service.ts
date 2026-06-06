@@ -18,15 +18,66 @@ import { MailService } from 'src/mail/mail.service';
 import { ForgetPasswordDto } from './dto/forgetPass.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { randomBytes } from 'crypto';
-
+import {
+  Technician,
+  TechnicianDocument,
+} from '../technician/schemas/technician.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Technician.name)
+    private technicianModel: Model<TechnicianDocument>,
     private jwtService: JwtService,
     private mailService: MailService,
   ) {}
+
+  private async signTokens(user: UserDocument) {
+    const payload = { sub: user._id, email: user.email, role: user.role };
+
+    const access_token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: '15m',
+    });
+
+    const refresh_token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d',
+    });
+
+    const hashed = await bcrypt.hash(refresh_token, 10);
+    await this.userModel.findByIdAndUpdate(user._id, { refreshToken: hashed });
+
+    let technicianData: {
+      currentStep: number;
+      isProfileComplete: boolean;
+      verificationStatus: string;
+    } | null = null;
+    if (user.role === UserRole.TECHNICIAN) {
+      const technician = await this.technicianModel.findOne({
+        userId: user._id,
+      });
+      technicianData = {
+        currentStep: technician?.currentStep ?? 1,
+        isProfileComplete: technician?.isProfileComplete ?? false,
+        verificationStatus: technician?.verificationStatus ?? 'incomplete',
+      };
+    }
+
+    return {
+      access_token,
+      refresh_token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        ...(technicianData && { technicianData }),
+      },
+    };
+  }
 
   async registerClient(dto: RegisterDto) {
     try {
@@ -42,6 +93,7 @@ export class AuthService {
         role: UserRole.CLIENT,
         governorate: dto.governorate,
         city: dto.city,
+        gender: dto.gender,
       });
 
       return this.signTokens(user);
@@ -55,48 +107,43 @@ export class AuthService {
   }
 
   async registerTechnician(dto: RegisterDto) {
-    await this.checkEmail(dto.email);
-    this.checkPasswords(dto.password, dto.confirmPassword);
-
-    const hashed = await bcrypt.hash(dto.password, 10);
-
     try {
+      await this.checkEmail(dto.email);
+      this.checkPasswords(dto.password, dto.confirmPassword);
+      const hashed = await bcrypt.hash(dto.password, 10);
       const user = await this.userModel.create({
         fullName: dto.fullName,
         email: dto.email,
         password: hashed,
         phone: dto.phone,
         role: UserRole.TECHNICIAN,
-        currentStep: 1,
-        city: dto.city,
         governorate: dto.governorate,
-      });
+        city: dto.city,
+        gender: dto.gender,
+      } as any);
+
+      await this.technicianModel.create({ userId: user._id } as any);
 
       return this.signTokens(user);
-    } catch (error: unknown) {
-      const err = error as any;
-
-      if (err?.code === 11000) {
-        const field = Object.keys(err.keyValue || {})[0];
-        throw new ConflictException(`${field} already exists`);
+    } catch (error: any) {
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        throw new BadRequestException(`${field} already exists`);
       }
-
-      if (err?.name === 'ValidationError') {
-        const messages = Object.values(err.errors).map((e: any) => e.message);
-        throw new BadRequestException(messages);
-      }
-
-      throw new InternalServerErrorException('Something went wrong');
+      throw error;
     }
   }
 
   async login(dto: LoginDto) {
     const user = await this.userModel.findOne({ email: dto.email });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
-
-    const isMatch = await bcrypt.compare(dto.password, user.password!);
-    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
-
+    if (!user) throw new UnauthorizedException('Invalid email or password');
+    
+    // sign with google
+    if (!user.password)
+      throw new UnauthorizedException('Invalid email or password');
+    
+    const isMatch = await bcrypt.compare(dto.password, user.password);
+    if (!isMatch) throw new UnauthorizedException('Invalid email or password');
     return this.signTokens(user);
   }
 
@@ -132,6 +179,7 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+
   async findOrCreateGoogleUser(data: {
     email: string;
     fullName: string;
@@ -160,35 +208,6 @@ export class AuthService {
     });
 
     return this.signTokens(newUser);
-  }
-
-  private async signTokens(user: UserDocument) {
-    const payload = { sub: user._id, email: user.email, role: user.role };
-
-    const access_token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET || 'secret',
-      expiresIn: '1d',
-    });
-
-    const refresh_token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
-      expiresIn: '7d',
-    });
-
-    const hashed = await bcrypt.hash(refresh_token, 10);
-    await this.userModel.findByIdAndUpdate(user._id, { refreshToken: hashed });
-
-    return {
-      access_token,
-      refresh_token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        currentStep: user.currentStep ?? null,
-      },
-    };
   }
 
   private async checkEmail(email: string) {
@@ -237,6 +256,8 @@ export class AuthService {
 
     const user = await this.userModel.findOne({ email: dto.email });
     if (!user) throw new NotFoundException('Email not found');
+    if (user.otp || user.otpExpires)
+      throw new BadRequestException('Please verify OTP first');
 
     const hashed = await bcrypt.hash(dto.newPassword, 10);
     await this.userModel.findByIdAndUpdate(user._id, { password: hashed });

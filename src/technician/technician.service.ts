@@ -19,14 +19,21 @@ import {
 } from 'src/categories/schemas/category.schema';
 import { plainToInstance } from 'class-transformer';
 import { TechnicianDataDto } from './dto/tech-data.dto';
+import {
+  Technician,
+  TechnicianDocument,
+  VerificationStatus,
+} from './schemas/technician.schema';
 
 @Injectable()
 export class TechnicianService {
   constructor(
+    @InjectModel(Technician.name)
+    private technicianModel: Model<TechnicianDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
     @InjectModel(ServiceEntity.name)
     private serviceModel: Model<ServiceDocument>,
-    @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
   ) {}
 
   private toTechnicianDataDto(data: any) {
@@ -36,8 +43,10 @@ export class TechnicianService {
   }
 
   async updateStep2(userId: string, dto: Step2Dto) {
-    const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('User not found');
+    const technician = await this.technicianModel.findOne({
+      userId: new Types.ObjectId(userId),
+    });
+    if (!technician) throw new NotFoundException('Technician not found');
 
     const category = await this.categoryModel.findById(dto.categoryId);
     if (!category) throw new NotFoundException('Category not found');
@@ -60,75 +69,82 @@ export class TechnicianService {
         'Some services do not belong to this category',
       );
 
-    user.specialization = {
+    technician.specialization = {
       categoryId: new Types.ObjectId(dto.categoryId),
       serviceIds: dto.serviceIds.map((id) => new Types.ObjectId(id)),
     };
-    user.currentStep = 2;
-    await user.save();
+    technician.currentStep = 2;
+    await technician.save();
 
-    return {
-      message: 'Step 2 completed',
-      currentStep: user.currentStep,
-    };
+    return { message: 'Step 2 completed', currentStep: technician.currentStep };
   }
 
   async updateStep3(userId: string, dto: Step3Dto) {
-    const user = await this.userModel.findByIdAndUpdate(
-      userId,
+    const technician = await this.technicianModel.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId) },
       { ...dto, currentStep: 3 },
       { new: true },
     );
-    if (!user) throw new NotFoundException('User not found');
-    return { message: 'Step 3 completed', currentStep: user.currentStep };
+    if (!technician) throw new NotFoundException('Technician not found');
+    return { message: 'Step 3 completed', currentStep: technician.currentStep };
   }
 
   async updateStep4(userId: string, dto: Step4Dto) {
-    const user = await this.userModel.findByIdAndUpdate(
-      userId,
+    const technician = await this.technicianModel.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId) },
       { ...dto, currentStep: 4 },
       { new: true },
     );
-    if (!user) throw new NotFoundException('User not found');
-    return { message: 'Step 4 completed', currentStep: user.currentStep };
+    if (!technician) throw new NotFoundException('Technician not found');
+    return { message: 'Step 4 completed', currentStep: technician.currentStep };
   }
 
   async updateStep5(
     userId: string,
     files: {
-      personalImage?: string;
-      idFrontImage?: string;
-      idBackImage?: string;
-      certificateImage?: string | undefined;
-      criminalRecordImage?: string | undefined;
+      personalImage: string;
+      idFrontImage: string;
+      idBackImage: string;
+      certificateImage?: string;
+      criminalRecordImage?: string;
     },
   ) {
-    const user = await this.userModel.findByIdAndUpdate(
-      userId,
+    const technician = await this.technicianModel.findOneAndUpdate(
+      { userId: new Types.ObjectId(userId) },
       {
         ...files,
         currentStep: 5,
         isProfileComplete: true,
-        verificationStatus: 'pending',
+        verificationStatus: VerificationStatus.PENDING,
       },
       { new: true },
     );
-    if (!user) throw new NotFoundException('User not found');
+    if (!technician) throw new NotFoundException('Technician not found');
     return {
       message: 'Registration complete! Awaiting verification.',
-      isProfileComplete: user.isProfileComplete,
-      verificationStatus: user.verificationStatus,
+      isProfileComplete: technician.isProfileComplete,
+      verificationStatus: technician.verificationStatus,
     };
   }
 
   async getTechData(userId: string) {
-    const user = await this.userModel.findById(userId).lean().exec();
-    if (!user) throw new NotFoundException('User not found');
-    if (user.currentStep !== 5)
+    const technician = await this.technicianModel
+      .findOne({ userId })
+      .populate(
+        'userId',
+        '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+      )
+      .lean()
+      .exec();
+
+    if (!technician) throw new NotFoundException('Technician not found');
+
+    if (technician.currentStep !== 5)
       throw new BadRequestException('Registration not completed');
+
     return {
       message: 'Technician data fetched successfully',
-      data: this.toTechnicianDataDto(user),
+      data: technician,
     };
   }
 }

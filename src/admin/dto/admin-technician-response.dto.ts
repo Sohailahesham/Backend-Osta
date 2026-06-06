@@ -2,10 +2,8 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Expose, Transform } from 'class-transformer';
-import {
-  TechnicianSpecialization,
-  VerificationStatus,
-} from 'src/users/schemas/user.schema';
+import { TechnicianSpecialization, VerificationStatus } from 'src/technician/schemas/technician.schema';
+
 
 export class AdminTechnicianDto {
   @Expose()

@@ -1,9 +1,11 @@
-import { IsArray, IsBoolean, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { IsArray, IsBoolean, IsEnum, IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import { WorkingDay } from '../schemas/technician.schema';
+
 
 export class Step3Dto {
   @IsNumber()
   yearsOfExperience: number;
-
+  
   @IsBoolean()
   hasTools: boolean;
 
@@ -11,8 +13,8 @@ export class Step3Dto {
   hasTransportation: boolean;
 
   @IsArray()
-  @IsString({ each: true })
-  workingDays: string[];
+  @IsEnum(WorkingDay, { each: true, message: 'Invalid working day' })
+  workingDays:  WorkingDay[];
 
   @IsNotEmpty()
   @IsString()
