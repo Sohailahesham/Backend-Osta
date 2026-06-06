@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument, UserRole } from '../users/schemas/user.schema';
+import { AuthProvider, User, UserDocument, UserRole } from '../users/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
@@ -177,6 +177,37 @@ export class AuthService {
   async logout(userId: string) {
     await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });
     return { message: 'Logged out successfully' };
+  }
+
+
+  async findOrCreateGoogleUser(data: {
+    email: string;
+    fullName: string;
+    googleId: string;
+  }) {
+    //* check if user already exists with googleId
+    let user = await this.userModel.findOne({ googleId: data.googleId });
+    if (user) return this.signTokens(user);
+
+    //* check if user exists with email
+    user = await this.userModel.findOne({ email: data.email });
+    if (user) {
+      user.googleId = data.googleId;
+      user.provider = AuthProvider.GOOGLE;
+      await user.save();
+      return this.signTokens(user);
+    }
+
+    //* create new user
+    const newUser = await this.userModel.create({
+      fullName: data.fullName,
+      email: data.email,
+      googleId: data.googleId,
+      provider: AuthProvider.GOOGLE,
+      role: UserRole.CLIENT,
+    });
+
+    return this.signTokens(newUser);
   }
 
   private async checkEmail(email: string) {

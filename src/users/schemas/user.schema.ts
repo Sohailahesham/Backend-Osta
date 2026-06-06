@@ -36,6 +36,7 @@ export class User {
   @Prop({ unique: true, sparse: true, trim: true })
   phone: string;
 
+
   @Prop({ enum: Gender })
   gender: Gender;
 

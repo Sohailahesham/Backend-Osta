@@ -2,6 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Expose, Transform } from 'class-transformer';
+import { TechnicianSpecialization } from 'src/technician/schemas/technician.schema';
 
 export class TechnicianDataDto {
   @Expose()
@@ -24,7 +25,7 @@ export class TechnicianDataDto {
   city: string;
 
   @Expose()
-  specializations: string[];
+  specialization: TechnicianSpecialization;
 
   @Expose()
   yearsOfExperience: number;
@@ -37,6 +38,12 @@ export class TechnicianDataDto {
 
   @Expose()
   workingDays: string[];
+
+  @Expose()
+  startTime: string;
+
+  @Expose()
+  endTime: string;
 
   @Expose()
   serviceAreas: string[];

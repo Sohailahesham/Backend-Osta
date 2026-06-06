@@ -9,6 +9,7 @@ import { TechnicianModule } from './technician/technician.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ServicesModule } from './services/services.module';
 import { AdminModule } from './admin/admin.module';
+import { AssistantModule } from './assistant/assistant.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AdminModule } from './admin/admin.module';
     CategoriesModule,
     ServicesModule,
     AdminModule,
+    AssistantModule,
   ],
   controllers: [AppController],
   providers: [AppService],

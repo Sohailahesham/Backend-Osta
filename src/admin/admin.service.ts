@@ -92,19 +92,10 @@ export class AdminService {
         .exec(),
     ]);
 
-    const totalPages = Math.ceil(total / limit);
-    if (total === 0) {
-      return {
-        message: 'No pending technicians found',
-        data: [],
-        meta: { page, limit, total, totalPages: 0 },
-      };
-    }
-    if (page > totalPages) throw new NotFoundException('Page not found');
     return {
       message: 'Pending technicians retrieved successfully',
       data: techs,
-      meta: { page, limit, total, totalPages },
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -141,7 +132,7 @@ export class AdminService {
       );
     }
 
-    const updated = await this.technicianModel
+    const updatedTechnician = await this.userModel
       .findByIdAndUpdate(
         id,
         {
@@ -151,13 +142,12 @@ export class AdminService {
         },
         { new: true },
       )
-      .populate('userId', '-password -refreshToken')
       .lean()
       .exec();
 
     return {
       message: 'Technician approved successfully',
-      data: updated,
+      data: updatedTechnician,
     };
   }
 
@@ -175,7 +165,7 @@ export class AdminService {
       );
     }
 
-    const updated = await this.technicianModel
+    const updatedTechnician = await this.userModel
       .findByIdAndUpdate(
         id,
         {
@@ -184,13 +174,12 @@ export class AdminService {
         },
         { new: true },
       )
-      .populate('userId', '-password -refreshToken')
       .lean()
       .exec();
 
     return {
       message: 'Technician rejected successfully',
-      data: updated,
+      data: updatedTechnician,
     };
   }
 }
