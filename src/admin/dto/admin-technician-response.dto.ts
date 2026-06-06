@@ -2,6 +2,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Expose, Transform } from 'class-transformer';
+import {
+  TechnicianSpecialization,
+  VerificationStatus,
+} from 'src/users/schemas/user.schema';
 
 export class AdminTechnicianDto {
   @Expose()
@@ -27,7 +31,7 @@ export class AdminTechnicianDto {
   city: string;
 
   @Expose()
-  specializations: string[];
+  specialization: TechnicianSpecialization;
 
   @Expose()
   yearsOfExperience: number;
@@ -42,13 +46,19 @@ export class AdminTechnicianDto {
   workingDays: string[];
 
   @Expose()
+  startTime: string;
+
+  @Expose()
+  endTime: string;
+
+  @Expose()
   serviceAreas: string[];
 
   @Expose()
   canWorkOutsideArea: boolean;
 
   @Expose()
-  verificationStatus: string;
+  verificationStatus: VerificationStatus;
 
   @Expose()
   personalImage: string;

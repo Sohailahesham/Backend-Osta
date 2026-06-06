@@ -64,11 +64,10 @@ export class User {
   password?: string;
 
   @Prop({
-    required: true,
     unique: true,
     trim: true,
   })
-  phone: string;
+  phone?: string;
 
   // ========== AUTH ==========
 

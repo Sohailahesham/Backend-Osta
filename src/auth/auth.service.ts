@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument, UserRole } from '../users/schemas/user.schema';
+import { AuthProvider, User, UserDocument, UserRole } from '../users/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
@@ -132,6 +132,36 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
+  async findOrCreateGoogleUser(data: {
+    email: string;
+    fullName: string;
+    googleId: string;
+  }) {
+    //* check if user already exists with googleId
+    let user = await this.userModel.findOne({ googleId: data.googleId });
+    if (user) return this.signTokens(user);
+
+    //* check if user exists with email
+    user = await this.userModel.findOne({ email: data.email });
+    if (user) {
+      user.googleId = data.googleId;
+      user.provider = AuthProvider.GOOGLE;
+      await user.save();
+      return this.signTokens(user);
+    }
+
+    //* create new user
+    const newUser = await this.userModel.create({
+      fullName: data.fullName,
+      email: data.email,
+      googleId: data.googleId,
+      provider: AuthProvider.GOOGLE,
+      role: UserRole.CLIENT,
+    });
+
+    return this.signTokens(newUser);
+  }
+
   private async signTokens(user: UserDocument) {
     const payload = { sub: user._id, email: user.email, role: user.role };
 
@@ -176,12 +206,12 @@ export class AuthService {
     if (!user) throw new NotFoundException('Email not found');
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     await this.userModel.findByIdAndUpdate(user._id, { otp, otpExpires });
     await this.mailService.sendOtp(user.email, otp);
 
-    return { message: 'OTP sent to your email' ,data:null };
+    return { message: 'OTP sent to your email', data: null };
   }
 
   async verifyOtp(dto: VerifyOtpDto) {
@@ -198,7 +228,7 @@ export class AuthService {
       otpExpires: null,
     });
 
-    return { message: 'OTP verified successfully' , data:null };
+    return { message: 'OTP verified successfully', data: null };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -211,12 +241,12 @@ export class AuthService {
     const hashed = await bcrypt.hash(dto.newPassword, 10);
     await this.userModel.findByIdAndUpdate(user._id, { password: hashed });
 
-    return { message: 'Password reset successfully' , data: null };
+    return { message: 'Password reset successfully', data: null };
   }
 
   async sendVerificationEmail(userId: string) {
     const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('User not found')
+    if (!user) throw new NotFoundException('User not found');
     if (user.isVerified)
       throw new BadRequestException('Email already verified');
     const token = randomBytes(32).toString('hex');
@@ -228,7 +258,7 @@ export class AuthService {
     });
 
     await this.mailService.sendVerificationEmail(user.email, token);
-    return { message: 'Verification email sent successfully'};
+    return { message: 'Verification email sent successfully' };
   }
 
   async verifyEmail(token: string) {

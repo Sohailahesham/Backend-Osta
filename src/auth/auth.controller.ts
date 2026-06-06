@@ -78,4 +78,21 @@ export class AuthController {
     res.setHeader('Content-Type', 'text/html');
     res.send(html);
   }
+
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  googleLogin() {
+    //* redirect to Google
+  }
+
+  @Get('google/callback')
+  @UseGuards(AuthGuard('google'))
+  googleCallback(@Req() req, @Res() res: express.Response) {
+    const { access_token, refresh_token } = req.user;
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
+    res.redirect(
+      `${frontendUrl}/auth/callback?access_token=${access_token}&refresh_token=${refresh_token}`,
+    );
+  }
 }
