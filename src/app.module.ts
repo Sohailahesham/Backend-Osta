@@ -9,6 +9,7 @@ import { TechnicianModule } from './technician/technician.module';
 import { CategoriesModule } from './categories/categories.module';
 import { ServicesModule } from './services/services.module';
 import { AdminModule } from './admin/admin.module';
+import { AssistantModule } from './assistant/assistant.module';
 import { RequestModule } from './request/request.module';
 
 @Module({
@@ -27,6 +28,7 @@ import { RequestModule } from './request/request.module';
     CategoriesModule,
     ServicesModule,
     AdminModule,
+    AssistantModule,
     RequestModule,
   ],
   controllers: [AppController],

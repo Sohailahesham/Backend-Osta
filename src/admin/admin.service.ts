@@ -6,20 +6,24 @@ import {
 import { InjectModel } from '@nestjs/mongoose';
 import { plainToInstance } from 'class-transformer';
 import { Model } from 'mongoose';
+import { User, UserDocument, UserRole } from 'src/users/schemas/user.schema';
 import {
-  User,
-  UserDocument,
-  UserRole,
+  Technician,
+  TechnicianDocument,
   VerificationStatus,
-} from 'src/users/schemas/user.schema';
+} from '../technician/schemas/technician.schema';
 import { AdminTechnicianDto } from './dto/admin-technician-response.dto';
 import { AdminUserResponseDto } from './dto/admin-user-response.dto';
+import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
+import { PaginationDto } from 'src/common/dto/pagination.dto';
 
 @Injectable()
 export class AdminService {
   constructor(
     @InjectModel(User.name)
     private readonly userModel: Model<UserDocument>,
+    @InjectModel(Technician.name)
+    private technicianModel: Model<TechnicianDocument>,
   ) {}
 
   //* private methods to transform data
@@ -35,138 +39,147 @@ export class AdminService {
   }
 
   //* get all users with filtering by role
-  async getAllUsers(role?: UserRole) {
+  async getAllUsers(query: AdminUsersQueryDto) {
+    const { page, limit, role } = query;
     const filter = role ? { role } : {};
+    const skip = (page - 1) * limit;
 
-    const users = await this.userModel
-    .find(filter)
-    .sort({ createdAt: -1 })
-    .lean()
-    .exec();
+    const [total, users] = await Promise.all([
+      this.userModel.countDocuments(filter),
+      this.userModel
+        .find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+    ]);
+    const totalPages = Math.ceil(total / limit);
+
+    if (page > totalPages) throw new NotFoundException('Page not found');
 
     return {
       message: 'Users retrieved successfully',
       data: this.toAdminUserDto(users),
       meta: {
-        total: users.length,
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
     };
   }
 
   //* get all pending technicians
-  async getPendingTechnicians() {
-    const techs = await this.userModel
-    .find({
-      role: UserRole.TECHNICIAN,
-      verificationStatus: VerificationStatus.PENDING,
-    })
-    .lean()
-    .exec();
+  async getPendingTechnicians(query: PaginationDto) {
+    const { page, limit } = query;
+    const skip = (page - 1) * limit;
+
+    const [total, techs] = await Promise.all([
+      this.technicianModel.countDocuments({
+        verificationStatus: VerificationStatus.PENDING,
+      }),
+      this.technicianModel
+        .find({ verificationStatus: VerificationStatus.PENDING })
+        .populate(
+          'userId',
+          '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+        )
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean()
+        .exec(),
+    ]);
 
     return {
       message: 'Pending technicians retrieved successfully',
-      data: this.toAdminTechnicianDto(techs),
-      meta: {
-        total: techs.length,
-      },
+      data: techs,
+      meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
 
   //* get technician by id
   async getTechnicianById(id: string) {
-    const technician = await this.userModel
-    .findOne({
-      _id: id,
-      role: UserRole.TECHNICIAN,
-    })
-    .lean()
-    .exec();
+    const technician = await this.technicianModel
+      .findById(id)
+      .populate(
+        'userId',
+        '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+      )
+      .lean()
+      .exec();
 
-    if (!technician) {
-      throw new NotFoundException('Technician not found');
-    }
+    if (!technician) throw new NotFoundException('Technician not found');
 
     return {
-      message: `Technician with id ${id} retrieved successfully`,
-      data: this.toAdminTechnicianDto(technician),
+      message: `Technician retrieved successfully`,
+      data: technician,
     };
   }
-
   //* approve technician
   async approveTechnician(id: string) {
-    const user = await this.userModel.findOne({
-      _id: id,
-      role: UserRole.TECHNICIAN,
-    });
-
-    if (!user) {
-      throw new NotFoundException('Technician not found');
-    }
+    const technician = await this.technicianModel.findById(id);
+    if (!technician) throw new NotFoundException('Technician not found');
 
     if (
-      user.verificationStatus !== VerificationStatus.PENDING ||
-      user.currentStep !== 5 ||
-      !user.isProfileComplete
+      technician.verificationStatus !== VerificationStatus.PENDING ||
+      technician.currentStep !== 5 ||
+      !technician.isProfileComplete
     ) {
       throw new BadRequestException(
-        'User is not pending or registration not completed',
+        'Technician is not pending or registration not completed',
       );
     }
 
     const updatedTechnician = await this.userModel
-    .findByIdAndUpdate(
-      id,
-      {
-        verificationStatus: VerificationStatus.APPROVED,
-        verifiedAt: new Date(),
-        rejectionReason: null,
-      },
-      { new: true },
-    )
-    .lean()
-    .exec();
+      .findByIdAndUpdate(
+        id,
+        {
+          verificationStatus: VerificationStatus.APPROVED,
+          verifiedAt: new Date(),
+          rejectionReason: null,
+        },
+        { new: true },
+      )
+      .lean()
+      .exec();
 
     return {
       message: 'Technician approved successfully',
-      data: this.toAdminTechnicianDto(updatedTechnician),
+      data: updatedTechnician,
     };
   }
 
   //* reject technician
   async rejectTechnician(id: string, reason: string) {
-    const user = await this.userModel.findOne({
-      _id: id,
-      role: UserRole.TECHNICIAN,
-    });
-
-    if (!user) {
-      throw new NotFoundException('Technician not found');
-    }
+    const technician = await this.technicianModel.findById(id);
+    if (!technician) throw new NotFoundException('Technician not found');
 
     if (
-      user.verificationStatus !== VerificationStatus.PENDING ||
-      user.currentStep !== 5
+      technician.verificationStatus !== VerificationStatus.PENDING ||
+      technician.currentStep !== 5
     ) {
       throw new BadRequestException(
-        'User is not pending or registration not completed',
+        'Technician is not pending or registration not completed',
       );
     }
 
     const updatedTechnician = await this.userModel
-    .findByIdAndUpdate(
-      id,
-      {
-        verificationStatus: VerificationStatus.REJECTED,
-        rejectionReason: reason,
-      },
-      { new: true },
-    )
-    .lean()
-    .exec();
+      .findByIdAndUpdate(
+        id,
+        {
+          verificationStatus: VerificationStatus.REJECTED,
+          rejectionReason: reason,
+        },
+        { new: true },
+      )
+      .lean()
+      .exec();
 
     return {
       message: 'Technician rejected successfully',
-      data: this.toAdminTechnicianDto(updatedTechnician),
+      data: updatedTechnician,
     };
   }
 }

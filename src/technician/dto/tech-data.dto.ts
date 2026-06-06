@@ -1,11 +1,10 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import { Expose, Transform } from 'class-transformer';
-import { TechnicianSpecialization, VerificationStatus } from 'src/technician/schemas/technician.schema';
+import { TechnicianSpecialization } from 'src/technician/schemas/technician.schema';
 
-
-export class AdminTechnicianDto {
+export class TechnicianDataDto {
   @Expose()
   @Transform(({ obj }) => obj._id?.toString())
   _id: string;
@@ -18,9 +17,6 @@ export class AdminTechnicianDto {
 
   @Expose()
   phone: string;
-
-  @Expose()
-  role: string;
 
   @Expose()
   governorate: string;
@@ -56,9 +52,6 @@ export class AdminTechnicianDto {
   canWorkOutsideArea: boolean;
 
   @Expose()
-  verificationStatus: VerificationStatus;
-
-  @Expose()
   personalImage: string;
 
   @Expose()
@@ -72,31 +65,4 @@ export class AdminTechnicianDto {
 
   @Expose()
   criminalRecordImage?: string;
-
-  @Expose()
-  rejectionReason?: string;
-
-  @Expose()
-  verifiedAt?: Date;
-
-  @Expose()
-  currentStep: number;
-
-  @Expose()
-  isProfileComplete: boolean;
-
-  @Expose()
-  isAvailable: boolean;
-
-  @Expose()
-  averageRating: number;
-
-  @Expose()
-  totalReviews: number;
-
-  @Expose()
-  createdAt: Date;
-
-  @Expose()
-  updatedAt: Date;
 }

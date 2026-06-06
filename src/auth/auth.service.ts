@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { User, UserDocument, UserRole } from '../users/schemas/user.schema';
+import { AuthProvider, User, UserDocument, UserRole } from '../users/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
@@ -18,15 +18,66 @@ import { MailService } from 'src/mail/mail.service';
 import { ForgetPasswordDto } from './dto/forgetPass.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { randomBytes } from 'crypto';
-
+import {
+  Technician,
+  TechnicianDocument,
+} from '../technician/schemas/technician.schema';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Technician.name)
+    private technicianModel: Model<TechnicianDocument>,
     private jwtService: JwtService,
     private mailService: MailService,
   ) {}
+
+  private async signTokens(user: UserDocument) {
+    const payload = { sub: user._id, email: user.email, role: user.role };
+
+    const access_token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: '15m',
+    });
+
+    const refresh_token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_REFRESH_SECRET,
+      expiresIn: '7d',
+    });
+
+    const hashed = await bcrypt.hash(refresh_token, 10);
+    await this.userModel.findByIdAndUpdate(user._id, { refreshToken: hashed });
+
+    let technicianData: {
+      currentStep: number;
+      isProfileComplete: boolean;
+      verificationStatus: string;
+    } | null = null;
+    if (user.role === UserRole.TECHNICIAN) {
+      const technician = await this.technicianModel.findOne({
+        userId: user._id,
+      });
+      technicianData = {
+        currentStep: technician?.currentStep ?? 1,
+        isProfileComplete: technician?.isProfileComplete ?? false,
+        verificationStatus: technician?.verificationStatus ?? 'incomplete',
+      };
+    }
+
+    return {
+      access_token,
+      refresh_token,
+      user: {
+        id: user._id,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        isVerified: user.isVerified,
+        ...(technicianData && { technicianData }),
+      },
+    };
+  }
 
   async registerClient(dto: RegisterDto) {
     try {
@@ -42,6 +93,7 @@ export class AuthService {
         role: UserRole.CLIENT,
         governorate: dto.governorate,
         city: dto.city,
+        gender: dto.gender,
       });
 
       return this.signTokens(user);
@@ -55,48 +107,43 @@ export class AuthService {
   }
 
   async registerTechnician(dto: RegisterDto) {
-    await this.checkEmail(dto.email);
-    this.checkPasswords(dto.password, dto.confirmPassword);
-
-    const hashed = await bcrypt.hash(dto.password, 10);
-
     try {
+      await this.checkEmail(dto.email);
+      this.checkPasswords(dto.password, dto.confirmPassword);
+      const hashed = await bcrypt.hash(dto.password, 10);
       const user = await this.userModel.create({
         fullName: dto.fullName,
         email: dto.email,
         password: hashed,
         phone: dto.phone,
         role: UserRole.TECHNICIAN,
-        currentStep: 1,
-        city: dto.city,
         governorate: dto.governorate,
-      });
+        city: dto.city,
+        gender: dto.gender,
+      } as any);
+
+      await this.technicianModel.create({ userId: user._id } as any);
 
       return this.signTokens(user);
-    } catch (error: unknown) {
-      const err = error as any;
-
-      if (err?.code === 11000) {
-        const field = Object.keys(err.keyValue || {})[0];
-        throw new ConflictException(`${field} already exists`);
+    } catch (error: any) {
+      if (error.code === 11000) {
+        const field = Object.keys(error.keyPattern)[0];
+        throw new BadRequestException(`${field} already exists`);
       }
-
-      if (err?.name === 'ValidationError') {
-        const messages = Object.values(err.errors).map((e: any) => e.message);
-        throw new BadRequestException(messages);
-      }
-
-      throw new InternalServerErrorException('Something went wrong');
+      throw error;
     }
   }
 
   async login(dto: LoginDto) {
     const user = await this.userModel.findOne({ email: dto.email });
-    if (!user) throw new UnauthorizedException('Invalid credentials');
-
-    const isMatch = await bcrypt.compare(dto.password, user.password!);
-    if (!isMatch) throw new UnauthorizedException('Invalid credentials');
-
+    if (!user) throw new UnauthorizedException('Invalid email or password');
+    
+    // sign with google
+    if (!user.password)
+      throw new UnauthorizedException('Invalid email or password');
+    
+    const isMatch = await bcrypt.compare(dto.password, user.password);
+    if (!isMatch) throw new UnauthorizedException('Invalid email or password');
     return this.signTokens(user);
   }
 
@@ -132,33 +179,35 @@ export class AuthService {
     return { message: 'Logged out successfully' };
   }
 
-  private async signTokens(user: UserDocument) {
-    const payload = { sub: user._id, email: user.email, role: user.role };
 
-    const access_token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET || 'secret',
-      expiresIn: '1d',
+  async findOrCreateGoogleUser(data: {
+    email: string;
+    fullName: string;
+    googleId: string;
+  }) {
+    //* check if user already exists with googleId
+    let user = await this.userModel.findOne({ googleId: data.googleId });
+    if (user) return this.signTokens(user);
+
+    //* check if user exists with email
+    user = await this.userModel.findOne({ email: data.email });
+    if (user) {
+      user.googleId = data.googleId;
+      user.provider = AuthProvider.GOOGLE;
+      await user.save();
+      return this.signTokens(user);
+    }
+
+    //* create new user
+    const newUser = await this.userModel.create({
+      fullName: data.fullName,
+      email: data.email,
+      googleId: data.googleId,
+      provider: AuthProvider.GOOGLE,
+      role: UserRole.CLIENT,
     });
 
-    const refresh_token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_REFRESH_SECRET || 'refresh_secret',
-      expiresIn: '7d',
-    });
-
-    const hashed = await bcrypt.hash(refresh_token, 10);
-    await this.userModel.findByIdAndUpdate(user._id, { refreshToken: hashed });
-
-    return {
-      access_token,
-      refresh_token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        currentStep: user.currentStep ?? null,
-      },
-    };
+    return this.signTokens(newUser);
   }
 
   private async checkEmail(email: string) {
@@ -176,12 +225,12 @@ export class AuthService {
     if (!user) throw new NotFoundException('Email not found');
 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    const otpExpires = new Date(Date.now() + 10 * 60 * 1000); 
+    const otpExpires = new Date(Date.now() + 10 * 60 * 1000);
 
     await this.userModel.findByIdAndUpdate(user._id, { otp, otpExpires });
     await this.mailService.sendOtp(user.email, otp);
 
-    return { message: 'OTP sent to your email' ,data:null };
+    return { message: 'OTP sent to your email', data: null };
   }
 
   async verifyOtp(dto: VerifyOtpDto) {
@@ -198,7 +247,7 @@ export class AuthService {
       otpExpires: null,
     });
 
-    return { message: 'OTP verified successfully' , data:null };
+    return { message: 'OTP verified successfully', data: null };
   }
 
   async resetPassword(dto: ResetPasswordDto) {
@@ -207,16 +256,18 @@ export class AuthService {
 
     const user = await this.userModel.findOne({ email: dto.email });
     if (!user) throw new NotFoundException('Email not found');
+    if (user.otp || user.otpExpires)
+      throw new BadRequestException('Please verify OTP first');
 
     const hashed = await bcrypt.hash(dto.newPassword, 10);
     await this.userModel.findByIdAndUpdate(user._id, { password: hashed });
 
-    return { message: 'Password reset successfully' , data: null };
+    return { message: 'Password reset successfully', data: null };
   }
 
   async sendVerificationEmail(userId: string) {
     const user = await this.userModel.findById(userId);
-    if (!user) throw new NotFoundException('User not found')
+    if (!user) throw new NotFoundException('User not found');
     if (user.isVerified)
       throw new BadRequestException('Email already verified');
     const token = randomBytes(32).toString('hex');
@@ -228,7 +279,7 @@ export class AuthService {
     });
 
     await this.mailService.sendVerificationEmail(user.email, token);
-    return { message: 'Verification email sent successfully'};
+    return { message: 'Verification email sent successfully' };
   }
 
   async verifyEmail(token: string) {

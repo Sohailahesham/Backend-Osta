@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Controller,
   Post,
@@ -7,6 +10,7 @@ import {
   UseInterceptors,
   UploadedFiles,
   BadRequestException,
+  Get,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -91,12 +95,12 @@ export class TechnicianController {
 
     if (requiredFiles.some((file) => !file)) {
       Object.values(files || {})
-        .flat()
-        .forEach((file) => {
-          if (file?.path && fs.existsSync(file.path)) {
-            fs.unlinkSync(file.path);
-          }
-        });
+      .flat()
+      .forEach((file) => {
+        if (file?.path && fs.existsSync(file.path)) {
+          fs.unlinkSync(file.path);
+        }
+      });
 
       throw new BadRequestException(
         'personalImage, idFrontImage and idBackImage are required',
@@ -110,5 +114,10 @@ export class TechnicianController {
       certificateImage: files.certificateImage?.[0]?.path,
       criminalRecordImage: files.criminalRecordImage?.[0]?.path,
     });
+  }
+
+  @Get('details')
+  profile(@Req() req) {
+    return this.technicianService.getTechData(req.user.userId);
   }
 }
