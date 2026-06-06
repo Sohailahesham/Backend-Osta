@@ -3,7 +3,7 @@ import { Expose, Transform } from 'class-transformer';
 export class AdminUserResponseDto {
   @Expose()
   @Transform(({ obj }) => obj._id?.toString())
-  _id: string;
+  id: string;
 
   @Expose()
   fullName: string;
@@ -13,6 +13,15 @@ export class AdminUserResponseDto {
 
   @Expose()
   phone: string;
+
+  @Expose()
+  governorate: string;
+
+  @Expose()
+  city: string;
+
+  @Expose()
+  gender: string;
 
   @Expose()
   role: string;

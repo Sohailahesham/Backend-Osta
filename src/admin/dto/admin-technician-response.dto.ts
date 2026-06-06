@@ -1,102 +1,85 @@
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-import { Expose, Transform } from 'class-transformer';
-import { TechnicianSpecialization, VerificationStatus } from 'src/technician/schemas/technician.schema';
+import { Expose, Transform, Type } from 'class-transformer';
+import { VerificationStatus } from 'src/technician/schemas/technician.schema';
 
-
-export class AdminTechnicianDto {
+// ── الـ User data اللي جوا الـ populate ──────────────────
+class TechnicianUserDto {
   @Expose()
   @Transform(({ obj }) => obj._id?.toString())
   _id: string;
 
+  @Expose() fullName: string;
+  @Expose() email: string;
+  @Expose() phone: string;
+  @Expose() gender: string;
+  @Expose() governorate: string;
+  @Expose() city: string;
+  @Expose() isVerified: boolean;
+  @Expose() createdAt: Date;
+}
+
+// ── الـ Specialization sub-document ──────────────────────
+class SpecializationDto {
   @Expose()
-  fullName: string;
+  @Transform(({ obj }) => obj?.categoryId?.toString())
+  categoryId: string;
 
   @Expose()
-  email: string;
+  @Transform(({ obj }) =>
+    Array.isArray(obj?.serviceIds)
+      ? obj.serviceIds.map((id: any) => id?.toString())
+      : [],
+  )
+  serviceIds: string[];
+}
 
+// ── الـ DTO الرئيسي ───────────────────────────────────────
+export class AdminTechnicianDto {
   @Expose()
-  phone: string;
+  @Transform(({ obj }) => obj._id?.toString())
+  _id: string; // Technician document id
 
+  // بيانات الـ User المربوطة عبر populate
   @Expose()
-  role: string;
+  @Type(() => TechnicianUserDto)
+  userId: TechnicianUserDto;
 
+  // ── Professional ──
   @Expose()
-  governorate: string;
+  @Type(() => SpecializationDto)
+  specialization: SpecializationDto;
 
-  @Expose()
-  city: string;
+  @Expose() yearsOfExperience: number;
+  @Expose() hasTools: boolean;
+  @Expose() hasTransportation: boolean;
 
-  @Expose()
-  specialization: TechnicianSpecialization;
+  // ── Schedule ──
+  @Expose() workingDays: string[];
+  @Expose() startTime: string;
+  @Expose() endTime: string;
 
-  @Expose()
-  yearsOfExperience: number;
+  // ── Service Areas ──
+  @Expose() serviceAreas: string[];
+  @Expose() canWorkOutsideArea: boolean;
 
-  @Expose()
-  hasTools: boolean;
+  // ── Documents ──
+  @Expose() personalImage: string;
+  @Expose() idFrontImage: string;
+  @Expose() idBackImage: string;
+  @Expose() certificateImage: string;
+  @Expose() criminalRecordImage?: string;
 
-  @Expose()
-  hasTransportation: boolean;
+  // ── Verification ──
+  @Expose() verificationStatus: VerificationStatus;
+  @Expose() rejectionReason?: string;
+  @Expose() verifiedAt?: Date;
+  @Expose() currentStep: number;
+  @Expose() isProfileComplete: boolean;
 
-  @Expose()
-  workingDays: string[];
+  // ── Stats ──
+  @Expose() isAvailable: boolean;
+  @Expose() averageRating: number;
+  @Expose() totalReviews: number;
 
-  @Expose()
-  startTime: string;
-
-  @Expose()
-  endTime: string;
-
-  @Expose()
-  serviceAreas: string[];
-
-  @Expose()
-  canWorkOutsideArea: boolean;
-
-  @Expose()
-  verificationStatus: VerificationStatus;
-
-  @Expose()
-  personalImage: string;
-
-  @Expose()
-  idFrontImage: string;
-
-  @Expose()
-  idBackImage: string;
-
-  @Expose()
-  certificateImage: string;
-
-  @Expose()
-  criminalRecordImage?: string;
-
-  @Expose()
-  rejectionReason?: string;
-
-  @Expose()
-  verifiedAt?: Date;
-
-  @Expose()
-  currentStep: number;
-
-  @Expose()
-  isProfileComplete: boolean;
-
-  @Expose()
-  isAvailable: boolean;
-
-  @Expose()
-  averageRating: number;
-
-  @Expose()
-  totalReviews: number;
-
-  @Expose()
-  createdAt: Date;
-
-  @Expose()
-  updatedAt: Date;
+  @Expose() createdAt: Date;
+  @Expose() updatedAt: Date;
 }

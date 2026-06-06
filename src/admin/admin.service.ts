@@ -47,12 +47,12 @@ export class AdminService {
     const [total, users] = await Promise.all([
       this.userModel.countDocuments(filter),
       this.userModel
-        .find(filter)
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
     ]);
     const totalPages = Math.ceil(total / limit);
 
@@ -70,6 +70,16 @@ export class AdminService {
     };
   }
 
+  //* get user by id
+  async getUserById(id: string) {
+    const user = await this.userModel.findById(id).lean().exec();
+    if (!user) throw new NotFoundException('User not found');
+    return {
+      message: 'User retrieved successfully',
+      data: this.toAdminUserDto(user),
+    };
+  }
+
   //* get all pending technicians
   async getPendingTechnicians(query: PaginationDto) {
     const { page, limit } = query;
@@ -80,21 +90,21 @@ export class AdminService {
         verificationStatus: VerificationStatus.PENDING,
       }),
       this.technicianModel
-        .find({ verificationStatus: VerificationStatus.PENDING })
-        .populate(
-          'userId',
-          '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
-        )
-        .sort({ createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find({ verificationStatus: VerificationStatus.PENDING })
+      .populate(
+        'userId',
+        '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
     ]);
 
     return {
       message: 'Pending technicians retrieved successfully',
-      data: techs,
+      data: this.toAdminTechnicianDto(techs),
       meta: { page, limit, total, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -102,21 +112,22 @@ export class AdminService {
   //* get technician by id
   async getTechnicianById(id: string) {
     const technician = await this.technicianModel
-      .findById(id)
-      .populate(
-        'userId',
-        '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
-      )
-      .lean()
-      .exec();
+    .findById(id)
+    .populate(
+      'userId',
+      '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+    )
+    .lean()
+    .exec();
 
     if (!technician) throw new NotFoundException('Technician not found');
 
     return {
       message: `Technician retrieved successfully`,
-      data: technician,
+      data: this.toAdminTechnicianDto(technician),
     };
   }
+
   //* approve technician
   async approveTechnician(id: string) {
     const technician = await this.technicianModel.findById(id);
@@ -132,22 +143,22 @@ export class AdminService {
       );
     }
 
-    const updatedTechnician = await this.userModel
-      .findByIdAndUpdate(
-        id,
-        {
-          verificationStatus: VerificationStatus.APPROVED,
-          verifiedAt: new Date(),
-          rejectionReason: null,
-        },
-        { new: true },
-      )
-      .lean()
-      .exec();
+    technician.verificationStatus = VerificationStatus.APPROVED;
+    technician.verifiedAt = new Date();
+    technician.rejectionReason = undefined;
+    await technician.save();
 
     return {
       message: 'Technician approved successfully',
-      data: updatedTechnician,
+      data: this.toAdminTechnicianDto(
+        await this.technicianModel
+        .findById(id)
+        .populate(
+          'userId',
+          '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+        )
+        .lean(),
+      ),
     };
   }
 
@@ -165,21 +176,75 @@ export class AdminService {
       );
     }
 
-    const updatedTechnician = await this.userModel
-      .findByIdAndUpdate(
-        id,
-        {
-          verificationStatus: VerificationStatus.REJECTED,
-          rejectionReason: reason,
-        },
-        { new: true },
-      )
-      .lean()
-      .exec();
+    technician.verificationStatus = VerificationStatus.REJECTED;
+    technician.rejectionReason = reason;
+    await technician.save();
 
     return {
       message: 'Technician rejected successfully',
-      data: updatedTechnician,
+      data: this.toAdminTechnicianDto(
+        await this.technicianModel
+        .findById(id)
+        .populate(
+          'userId',
+          '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+        )
+        .lean(),
+      ),
+    };
+  }
+
+  //* get all technicians
+  async getAllTechnicians(query: PaginationDto) {
+    const { page, limit } = query;
+    const skip = (page - 1) * limit;
+
+    const [total, technicians] = await Promise.all([
+      this.technicianModel.countDocuments({
+        verificationStatus: VerificationStatus.APPROVED,
+      }),
+      this.technicianModel
+      .find({ verificationStatus: VerificationStatus.APPROVED })
+      .populate(
+        'userId',
+        '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
+      )
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean()
+      .exec(),
+    ]);
+
+    const totalPages = Math.ceil(total / limit);
+
+    if (page > totalPages) throw new NotFoundException('Page not found');
+
+    return {
+      message: 'Technicians retrieved successfully',
+      data: this.toAdminTechnicianDto(technicians),
+      meta: {
+        page,
+        limit,
+        total,
+        totalPages,
+      },
+    };
+  }
+
+  //* Change Role to admin
+  async setAdminRole(id: string) {
+    const user = await this.userModel.findById(id);
+    if (!user) throw new NotFoundException('User not found');
+
+    const updatedUser = await this.userModel
+    .findByIdAndUpdate(id, { role: UserRole.ADMIN }, { new: true })
+    .lean()
+    .exec();
+
+    return {
+      message: 'Role updated successfully',
+      data: this.toAdminUserDto(updatedUser),
     };
   }
 }

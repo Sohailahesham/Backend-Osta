@@ -27,6 +27,11 @@ export class AdminController {
     return this.adminService.getAllUsers(query);
   }
 
+  @Get('users/:id')
+  getUser(@Param('id', ParseMongoIdPipe) id: string) {
+    return this.adminService.getUserById(id);
+  }
+
   @Get('technicians/pending')
   getPendingTechnicians(@Query() query: PaginationDto) {
     return this.adminService.getPendingTechnicians(query);
@@ -45,5 +50,15 @@ export class AdminController {
   @Patch('technicians/:id/reject')
   rejectTechnician(@Param('id') id: string, @Body() dto: RejectTechnicianDto) {
     return this.adminService.rejectTechnician(id, dto.reason);
+  }
+
+  @Get('technicians')
+  getAllTechnicians(@Query() query: PaginationDto) {
+    return this.adminService.getAllTechnicians(query);
+  }
+
+  @Patch('users/:id/set-admin-role')
+  setAdminRole(@Param('id', ParseMongoIdPipe) id: string) {
+    return this.adminService.setAdminRole(id);
   }
 }
