@@ -11,6 +11,8 @@ import { ServicesModule } from './services/services.module';
 import { AdminModule } from './admin/admin.module';
 import { AssistantModule } from './assistant/assistant.module';
 import { RequestModule } from './request/request.module';
+import { EmergencyModule } from './emergency/emergency.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -30,6 +32,8 @@ import { RequestModule } from './request/request.module';
     AdminModule,
     AssistantModule,
     RequestModule,
+    EmergencyModule,
+    ReviewsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

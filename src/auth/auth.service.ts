@@ -8,7 +8,12 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { AuthProvider, User, UserDocument, UserRole } from '../users/schemas/user.schema';
+import {
+  AuthProvider,
+  User,
+  UserDocument,
+  UserRole,
+} from '../users/schemas/user.schema';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcryptjs';
@@ -38,7 +43,7 @@ export class AuthService {
 
     const access_token = this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET,
-      expiresIn: '15m',
+      expiresIn: '1d',
     });
 
     const refresh_token = this.jwtService.sign(payload, {
@@ -137,11 +142,11 @@ export class AuthService {
   async login(dto: LoginDto) {
     const user = await this.userModel.findOne({ email: dto.email });
     if (!user) throw new UnauthorizedException('Invalid email or password');
-    
+
     // sign with google
     if (!user.password)
       throw new UnauthorizedException('Invalid email or password');
-    
+
     const isMatch = await bcrypt.compare(dto.password, user.password);
     if (!isMatch) throw new UnauthorizedException('Invalid email or password');
     return this.signTokens(user);
@@ -178,7 +183,6 @@ export class AuthService {
     await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });
     return { message: 'Logged out successfully' };
   }
-
 
   async findOrCreateGoogleUser(data: {
     email: string;

@@ -1,20 +1,29 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, HttpCode, HttpStatus } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Patch,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
+import { RolesGuard } from 'src/common/guards/roles.guard';
+import { RoleDecorator } from 'src/common/decorators/role.decorator';
+import { UserRole } from 'src/users/schemas/user.schema';
+import { ParseMongoIdPipe } from 'src/common/pipes/parse-mongo-id.pipe';
 
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
-  // POST /api/categories
-  @Post()
-  async create(@Body() dto: CreateCategoryDto) {
-    const data = await this.categoriesService.create(dto);
-    return { message: 'Category created successfully', data };
-  }
-
-  // GET /api/categories
+  //* ── Public (read only) ───────────────────────────────────────────────
   @Get()
   async findAll() {
     const data = await this.categoriesService.findAll();
@@ -23,29 +32,49 @@ export class CategoriesController {
 
   // GET /api/categories/:id
   @Get(':id')
-  async findOne(@Param('id') id: string) {
+  async findOne(@Param('id', ParseMongoIdPipe) id: string) {
     const data = await this.categoriesService.findOne(id);
     return { message: 'Category fetched successfully', data };
   }
 
-  // PATCH /api/categories/:id
+  //* ── Admin only (write) ───────────────────────────────────────────────
+  @Post()
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @RoleDecorator(UserRole.ADMIN)
+  async create(@Body() dto: CreateCategoryDto) {
+    const data = await this.categoriesService.create(dto);
+    return { message: 'Category created successfully', data };
+  }
+
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateCategoryDto) {
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @RoleDecorator(UserRole.ADMIN)
+  async update(
+    @Param('id', ParseMongoIdPipe) id: string,
+    @Body() dto: UpdateCategoryDto,
+  ) {
     const data = await this.categoriesService.update(id, dto);
     return { message: 'Category updated successfully', data };
   }
 
   // PATCH /api/categories/:id/toggle-active
   @Patch(':id/toggle-active')
-  async toggleActive(@Param('id') id: string) {
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @RoleDecorator(UserRole.ADMIN)
+  async toggleActive(@Param('id', ParseMongoIdPipe) id: string) {
     const data = await this.categoriesService.toggleActive(id);
-    return { message: `Category is now ${data.isActive ? 'active' : 'inactive'}`, data };
+    return {
+      message: `Category is now ${data.isActive ? 'active' : 'inactive'}`,
+      data,
+    };
   }
 
   // DELETE /api/categories/:id
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
-  async remove(@Param('id') id: string) {
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @RoleDecorator(UserRole.ADMIN)
+  async remove(@Param('id', ParseMongoIdPipe) id: string) {
     return this.categoriesService.remove(id);
   }
 }
