@@ -8,13 +8,13 @@ export class Review {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true })
   userId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'User', required: true })
+  @Prop({ type: Types.ObjectId, ref: 'Technician', required: true })
   technicianId: Types.ObjectId;
 
   @Prop({ type: Types.ObjectId, ref: 'ServiceEntity', required: true })
   serviceId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'Request', required: true, unique: true })
+  @Prop({ type: Types.ObjectId, ref: 'MainRequest', required: true })
   requestId: Types.ObjectId;
 
   @Prop({ required: true, min: 1, max: 5 })
@@ -26,9 +26,6 @@ export class Review {
 
 export const ReviewSchema = SchemaFactory.createForClass(Review);
 
-// منع الـ user من review نفس الـ request أكتر من مرة
 ReviewSchema.index({ requestId: 1 }, { unique: true });
-// لجيب reviews الـ technician بسرعة
 ReviewSchema.index({ technicianId: 1 });
-// لجيب reviews الـ service بسرعة
 ReviewSchema.index({ serviceId: 1 });

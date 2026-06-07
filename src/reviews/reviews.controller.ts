@@ -1,8 +1,10 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
+  Patch,
   Post,
   Req,
   UseGuards,
@@ -14,6 +16,7 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { RoleDecorator } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/users/schemas/user.schema';
 import { ParseMongoIdPipe } from 'src/common/pipes/parse-mongo-id.pipe';
+import { UpdateReviewDto } from './dto/update-review.dto';
 
 @Controller('reviews')
 export class ReviewsController {
@@ -34,5 +37,23 @@ export class ReviewsController {
   @Get('service/:id')
   findByService(@Param('id', ParseMongoIdPipe) id: string) {
     return this.reviewsService.findByService(id);
+  }
+
+  @Patch(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @RoleDecorator(UserRole.CLIENT)
+  update(
+    @Param('id', ParseMongoIdPipe) id: string,
+    @Req() req,
+    @Body() dto: UpdateReviewDto,
+  ) {
+    return this.reviewsService.update(id, req.user.userId, dto);
+  }
+
+  @Delete(':id')
+  @UseGuards(AuthGuard('jwt'), RolesGuard)
+  @RoleDecorator(UserRole.CLIENT)
+  remove(@Param('id', ParseMongoIdPipe) id: string, @Req() req) {
+    return this.reviewsService.remove(id, req.user.userId);
   }
 }
