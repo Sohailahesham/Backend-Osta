@@ -165,7 +165,7 @@ export class RequestService {
       throw new BadRequestException('Only pending requests can be accepted');
 
     request.assignedTechnician = new Types.ObjectId(technicianId) as any;
-    request.status = RequestStatus.IN_PROGRESS;
+    request.status = RequestStatus.ACCEPTED;
     return request.save();
   }
   // helper to get assignedTechnician id as string

@@ -6,6 +6,7 @@ import { PaymobService } from './paymob.service';
 import { Payment, PaymentSchema } from './schemas/payment.schema';
 import { MainRequest, RequestSchema } from '../request/schemas/request.schema';
 import { User, UserSchema } from '../users/schemas/user.schema';
+import { PaymentScheduler } from './payment.scheduler';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
     ]),
   ],
   controllers: [PaymentController],
-  providers: [PaymentService, PaymobService],
+  providers: [PaymentService, PaymobService, PaymentScheduler],
   exports: [PaymentService],
 })
 export class PaymentModule {}
