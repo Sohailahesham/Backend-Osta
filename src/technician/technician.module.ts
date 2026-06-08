@@ -7,14 +7,16 @@ import { AuthModule } from '../auth/auth.module';
 import { ServiceEntity, ServiceSchema } from 'src/services/schemas/service.schema';
 import { Category, CategorySchema } from 'src/categories/schemas/category.schema';
 import { Technician, TechnicianSchema } from './schemas/technician.schema';
+import { MainRequest, RequestSchema } from 'src/request/schemas/request.schema';
 
 @Module({
   imports: [
-     MongooseModule.forFeature([
+    MongooseModule.forFeature([
       { name: Technician.name, schema: TechnicianSchema },
       { name: User.name, schema: UserSchema },
       { name: Category.name, schema: CategorySchema },
       { name: ServiceEntity.name, schema: ServiceSchema },
+      { name: MainRequest.name, schema: RequestSchema },
     ]),
     AuthModule,
   ],

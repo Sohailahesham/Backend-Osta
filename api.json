@@ -1,0 +1,3213 @@
+{
+  "openapi": "3.0.0",
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "AppController_getHello",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "App"
+        ]
+      }
+    },
+    "/users/me": {
+      "get": {
+        "description": "Retrieve complete profile information of the authenticated user.",
+        "operationId": "UsersController_getMe",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "User profile retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Profile retrieved successfully",
+                    "data": {
+                      "id": "60d5ec49c1234567890abc12",
+                      "fullName": "Ahmed Mohamed",
+                      "email": "client@example.com",
+                      "phone": "20123456789",
+                      "governorate": "Cairo",
+                      "city": "Giza",
+                      "gender": "MALE",
+                      "role": "client",
+                      "isVerified": true,
+                      "createdAt": "2024-01-15T10:30:00.000Z"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid token"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get authenticated user profile",
+        "tags": [
+          "Users"
+        ]
+      },
+      "patch": {
+        "description": "Update profile information. All fields are optional - only provide fields to update.",
+        "operationId": "UsersController_updateMe",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Profile updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Profile updated successfully",
+                    "data": {
+                      "id": "60d5ec49c1234567890abc12",
+                      "fullName": "Ahmed Mohamed Updated",
+                      "email": "client@example.com",
+                      "phone": "20123456789",
+                      "governorate": "Alexandria",
+                      "city": "Alexandria",
+                      "gender": "MALE",
+                      "role": "client",
+                      "isVerified": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Update user profile",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/users/dashboard": {
+      "get": {
+        "description": "Retrieve dashboard data for the authenticated user. This endpoint requires authentication and authorization to access.",
+        "operationId": "UsersController_getDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Dashboard data retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Dashboard data retrieved successfully",
+                    "data": {
+                      "totalRequests": 5,
+                      "recentRequests": [
+                        {
+                          "id": "60d5ec49c1234567890abc12",
+                          "title": "Request 1",
+                          "status": "pending",
+                          "preferredDate": "2024-01-15",
+                          "preferredTime": "10:00",
+                          "createdAt": "2024-01-15T10:30:00.000Z"
+                        },
+                        {
+                          "id": "60d5ec49c1234567890abc13",
+                          "title": "Request 2",
+                          "status": "in-progress",
+                          "preferredDate": "2024-01-16",
+                          "preferredTime": "11:00",
+                          "createdAt": "2024-01-16T11:00:00.000Z"
+                        },
+                        {
+                          "id": "60d5ec49c1234567890abc14",
+                          "title": "Request 3",
+                          "status": "completed",
+                          "preferredDate": "2024-01-17",
+                          "preferredTime": "12:00",
+                          "createdAt": "2024-01-17T12:00:00.000Z"
+                        }
+                      ],
+                      "activeRequest": {
+                        "id": "60d5ec49c1234567890abc15",
+                        "title": "Request 4",
+                        "status": "in-progress",
+                        "preferredDate": "2024-01-18",
+                        "preferredTime": "13:00",
+                        "createdAt": "2024-01-18T13:00:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid token"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get user dashboard data",
+        "tags": [
+          "Users"
+        ]
+      }
+    },
+    "/auth/register/user": {
+      "post": {
+        "description": "Create a new client account with email, password, and personal information.",
+        "operationId": "AuthController_registerClient",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Client registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "User registered successfully",
+                    "data": {
+                      "id": "60d5ec49c1234567890abc12",
+                      "fullName": "Ahmed Mohamed",
+                      "email": "client@example.com",
+                      "phone": "20123456789",
+                      "role": "client",
+                      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error or email already exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": false,
+                    "message": "Validation failed",
+                    "data": {
+                      "errors": [
+                        {
+                          "field": "email",
+                          "message": "Email already registered"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Register a new client account",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/register/technician": {
+      "post": {
+        "description": "Create a new technician account. After registration, complete the 5-step verification process.",
+        "operationId": "AuthController_registerTechnician",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegisterDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Technician registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Technician registered successfully",
+                    "data": {
+                      "id": "60d5ec49c1234567890abc13",
+                      "fullName": "Karim Hassan",
+                      "email": "technician@example.com",
+                      "role": "technician",
+                      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Register a new technician account",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "description": "Login using registered email and password credentials.",
+        "operationId": "AuthController_login",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Login successful",
+                    "data": {
+                      "user": {
+                        "id": "60d5ec49c1234567890abc12",
+                        "fullName": "Ahmed Mohamed",
+                        "email": "client@example.com",
+                        "role": "client",
+                        "isVerified": true
+                      },
+                      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid email or password"
+          }
+        },
+        "summary": "Authenticate user with email and password",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "description": "Obtain a new access token using a valid refresh token.",
+        "operationId": "AuthController_refresh",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token refreshed successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Token refreshed successfully",
+                    "data": {
+                      "accessToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                      "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid or expired refresh token"
+          }
+        },
+        "summary": "Get new access token using refresh token",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "description": "Logout from current session and invalidate the refresh token.",
+        "operationId": "AuthController_logout",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Logged out successfully",
+                    "data": null
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Logout and invalidate refresh token",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/forget-password": {
+      "post": {
+        "description": "Send OTP code to registered email for password reset.",
+        "operationId": "AuthController_forgetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForgetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP sent successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "OTP sent to your email",
+                    "data": {
+                      "email": "client@example.com"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "User not found"
+          }
+        },
+        "summary": "Request password reset via OTP",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/verify-otp": {
+      "post": {
+        "description": "Verify the OTP code sent to email.",
+        "operationId": "AuthController_verifyOtp",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VerifyOtpDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OTP verified successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "OTP verified successfully",
+                    "data": {
+                      "resetToken": "temp_token_xyz",
+                      "expiresIn": 600
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid or expired OTP"
+          }
+        },
+        "summary": "Verify OTP code",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "description": "Update password after OTP verification.",
+        "operationId": "AuthController_resetPassword",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetPasswordDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password reset successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Password reset successfully",
+                    "data": {
+                      "email": "client@example.com"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error"
+          }
+        },
+        "summary": "Reset password using verified OTP",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/send-verification": {
+      "post": {
+        "description": "Send verification email link to authenticated user to verify their email address.",
+        "operationId": "AuthController_sendVerification",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Verification email sent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "message": "Verification email sent successfully",
+                    "data": {
+                      "email": "client@example.com"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized"
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Send email verification link",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/verify-email": {
+      "get": {
+        "description": "Click link in verification email to verify email address.",
+        "operationId": "AuthController_verifyEmail",
+        "parameters": [
+          {
+            "name": "token",
+            "required": true,
+            "in": "query",
+            "description": "Email verification token from email link",
+            "schema": {
+              "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Email verified successfully (returns HTML page)"
+          },
+          "400": {
+            "description": "Invalid or expired token"
+          }
+        },
+        "summary": "Verify email address via token",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/google": {
+      "get": {
+        "description": "Initiates Google OAuth 2.0 authentication flow.",
+        "operationId": "AuthController_googleLogin",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to Google login"
+          }
+        },
+        "summary": "Redirect to Google OAuth consent screen",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/auth/google/callback": {
+      "get": {
+        "description": "Handles OAuth callback from Google and returns auth tokens.",
+        "operationId": "AuthController_googleCallback",
+        "parameters": [],
+        "responses": {
+          "302": {
+            "description": "Redirect to frontend with tokens in query parameters"
+          }
+        },
+        "summary": "Google OAuth callback handler",
+        "tags": [
+          "Auth"
+        ]
+      }
+    },
+    "/technician/step2": {
+      "post": {
+        "operationId": "TechnicianController_step2",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Step2Dto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Step 2 — Set specialization (categoryId + serviceIds)",
+        "tags": [
+          "Technician"
+        ]
+      }
+    },
+    "/technician/step3": {
+      "post": {
+        "operationId": "TechnicianController_step3",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Step3Dto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Step 3 — Professional info (experience, tools, schedule)",
+        "tags": [
+          "Technician"
+        ]
+      }
+    },
+    "/technician/step4": {
+      "post": {
+        "operationId": "TechnicianController_step4",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Step4Dto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Step 4 — Service areas",
+        "tags": [
+          "Technician"
+        ]
+      }
+    },
+    "/technician/step5": {
+      "post": {
+        "operationId": "TechnicianController_step5",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "personalImage",
+                  "idFrontImage",
+                  "idBackImage"
+                ],
+                "properties": {
+                  "personalImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "idFrontImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "idBackImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "certificateImage": {
+                    "type": "string",
+                    "format": "binary"
+                  },
+                  "criminalRecordImage": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Step 5 — Upload documents (multipart/form-data)",
+        "tags": [
+          "Technician"
+        ]
+      }
+    },
+    "/technician/details": {
+      "get": {
+        "operationId": "TechnicianController_profile",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get technician profile and registration details",
+        "tags": [
+          "Technician"
+        ]
+      }
+    },
+    "/technician/dashboard": {
+      "get": {
+        "operationId": "TechnicianController_dashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get technician dashboard",
+        "tags": [
+          "Technician"
+        ]
+      }
+    },
+    "/categories": {
+      "get": {
+        "operationId": "CategoriesController_findAll",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get all active categories",
+        "tags": [
+          "Categories"
+        ]
+      },
+      "post": {
+        "operationId": "CategoriesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Create a new category",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
+    "/categories/{id}": {
+      "get": {
+        "operationId": "CategoriesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get category by ID",
+        "tags": [
+          "Categories"
+        ]
+      },
+      "patch": {
+        "operationId": "CategoriesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateCategoryDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Update category",
+        "tags": [
+          "Categories"
+        ]
+      },
+      "delete": {
+        "operationId": "CategoriesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Delete category",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
+    "/categories/{id}/toggle-active": {
+      "patch": {
+        "operationId": "CategoriesController_toggleActive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Toggle category active/inactive",
+        "tags": [
+          "Categories"
+        ]
+      }
+    },
+    "/services": {
+      "get": {
+        "operationId": "ServicesController_findAll",
+        "parameters": [
+          {
+            "name": "categoryId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get all services (filter by categoryId)",
+        "tags": [
+          "Services"
+        ]
+      },
+      "post": {
+        "operationId": "ServicesController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateServiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Create service",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/services/most-common": {
+      "get": {
+        "operationId": "ServicesController_getMostCommon",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get most common services (top 6)",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/services/{id}": {
+      "get": {
+        "operationId": "ServicesController_findOne",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get service by ID",
+        "tags": [
+          "Services"
+        ]
+      },
+      "patch": {
+        "operationId": "ServicesController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateServiceDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Update service",
+        "tags": [
+          "Services"
+        ]
+      },
+      "delete": {
+        "operationId": "ServicesController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Delete service",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/services/{id}/comments": {
+      "get": {
+        "operationId": "ServicesController_getComments",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get service comments",
+        "tags": [
+          "Services"
+        ]
+      },
+      "post": {
+        "operationId": "ServicesController_addComment",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddCommentDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Add comment to service (authenticated)",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/services/{id}/toggle-active": {
+      "patch": {
+        "operationId": "ServicesController_toggleActive",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Toggle service active/inactive",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/services/{serviceId}/comments/{commentId}": {
+      "delete": {
+        "operationId": "ServicesController_removeComment",
+        "parameters": [
+          {
+            "name": "serviceId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "commentId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Delete comment from service",
+        "tags": [
+          "Services"
+        ]
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "operationId": "AdminController_getAllUsers",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "role",
+            "required": false,
+            "in": "query",
+            "description": "Filter users by role",
+            "schema": {
+              "example": "client",
+              "type": "string",
+              "enum": [
+                "client",
+                "technician",
+                "admin"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get all users (paginated, filter by role)",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users/{id}": {
+      "get": {
+        "operationId": "AdminController_getUser",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get user by ID",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/technicians/pending": {
+      "get": {
+        "operationId": "AdminController_getPendingTechnicians",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get pending technicians (paginated)",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/technicians/{id}": {
+      "get": {
+        "operationId": "AdminController_getTechnician",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get technician by ID",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/technicians/{id}/approve": {
+      "patch": {
+        "operationId": "AdminController_approveTechnician",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Approve technician",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/technicians/{id}/reject": {
+      "patch": {
+        "operationId": "AdminController_rejectTechnician",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejectTechnicianDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Reject technician with reason",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/technicians": {
+      "get": {
+        "operationId": "AdminController_getAllTechnicians",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get all technicians (paginated)",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/users/{id}/set-admin-role": {
+      "patch": {
+        "operationId": "AdminController_setAdminRole",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Promote user to admin role",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/dashboard": {
+      "get": {
+        "operationId": "AdminController_getDashboard",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get dashboard data",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/chat": {
+      "post": {
+        "operationId": "ChatController_chat",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "summary": "Send message to AI assistant",
+        "tags": [
+          "Chat"
+        ]
+      }
+    },
+    "/requests": {
+      "post": {
+        "operationId": "RequestController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Client] Create a new service request",
+        "tags": [
+          "Requests"
+        ]
+      },
+      "get": {
+        "operationId": "RequestController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter requests by status",
+            "schema": {
+              "example": "pending",
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_progress",
+                "completed",
+                "cancelled"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Get all requests (paginated)",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/pending": {
+      "get": {
+        "operationId": "RequestController_findAllPending",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter requests by status",
+            "schema": {
+              "example": "pending",
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_progress",
+                "completed",
+                "cancelled"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Technician/Admin] Get pending requests",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/my": {
+      "get": {
+        "operationId": "RequestController_findMyRequests",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter requests by status",
+            "schema": {
+              "example": "pending",
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_progress",
+                "completed",
+                "cancelled"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Client] Get my requests",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/assigned": {
+      "get": {
+        "operationId": "RequestController_findAssignedRequests",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "description": "Filter requests by status",
+            "schema": {
+              "example": "pending",
+              "type": "string",
+              "enum": [
+                "pending",
+                "in_progress",
+                "completed",
+                "cancelled"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Technician/Admin] Get assigned requests",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/{id}": {
+      "get": {
+        "operationId": "RequestController_findById",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Get request by ID",
+        "tags": [
+          "Requests"
+        ]
+      },
+      "delete": {
+        "operationId": "RequestController_delete",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Delete a request",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/{id}/accept": {
+      "patch": {
+        "operationId": "RequestController_acceptRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Technician] Accept a pending request",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/{id}/complete": {
+      "patch": {
+        "operationId": "RequestController_completeRequest",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Technician] Mark request as complete",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/{id}/status": {
+      "patch": {
+        "operationId": "RequestController_updateStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateStatusDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Override request status",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/requests/{id}/cancel": {
+      "patch": {
+        "operationId": "RequestController_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "Cancel a request (client/technician/admin)",
+        "tags": [
+          "Requests"
+        ]
+      }
+    },
+    "/emergency": {
+      "get": {
+        "operationId": "EmergencyPublicController_findAll",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "description": "Page number for pagination (starts from 1)",
+            "schema": {
+              "minimum": 1,
+              "example": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "description": "Number of items per page (maximum 100)",
+            "schema": {
+              "minimum": 1,
+              "maximum": 100,
+              "example": 10,
+              "type": "number"
+            }
+          },
+          {
+            "name": "type",
+            "required": false,
+            "in": "query",
+            "description": "Filter by emergency type",
+            "schema": {
+              "enum": [
+                "urgent",
+                "utilities",
+                "social"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get emergency numbers (paginated, filter by type)",
+        "tags": [
+          "Emergency"
+        ]
+      }
+    },
+    "/admin/emergency": {
+      "post": {
+        "operationId": "EmergencyAdminController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateEmergencyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Add emergency number",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/admin/emergency/{id}": {
+      "patch": {
+        "operationId": "EmergencyAdminController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateEmergencyDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Update emergency number",
+        "tags": [
+          "Admin"
+        ]
+      },
+      "delete": {
+        "operationId": "EmergencyAdminController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Admin] Delete emergency number",
+        "tags": [
+          "Admin"
+        ]
+      }
+    },
+    "/reviews": {
+      "post": {
+        "operationId": "ReviewsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Client] Submit a review for a completed request",
+        "tags": [
+          "Reviews"
+        ]
+      }
+    },
+    "/reviews/technician/{id}": {
+      "get": {
+        "operationId": "ReviewsController_findByTechnician",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get all reviews for a technician",
+        "tags": [
+          "Reviews"
+        ]
+      }
+    },
+    "/reviews/service/{id}": {
+      "get": {
+        "operationId": "ReviewsController_findByService",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "summary": "Get all reviews for a service",
+        "tags": [
+          "Reviews"
+        ]
+      }
+    },
+    "/reviews/{id}": {
+      "patch": {
+        "operationId": "ReviewsController_update",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateReviewDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Client] Edit own review",
+        "tags": [
+          "Reviews"
+        ]
+      },
+      "delete": {
+        "operationId": "ReviewsController_remove",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "JWT": []
+          }
+        ],
+        "summary": "[Client] Delete own review",
+        "tags": [
+          "Reviews"
+        ]
+      }
+    }
+  },
+  "info": {
+    "title": "Osta API",
+    "description": "Home services marketplace — connecting clients with verified technicians",
+    "version": "1.0",
+    "contact": {
+
+    }
+  },
+  "tags": [
+    {
+      "name": "Auth",
+      "description": "Register, login, tokens, Google OAuth, OTP"
+    },
+    {
+      "name": "Users",
+      "description": "Client profile management"
+    },
+    {
+      "name": "Technician",
+      "description": "Multi-step registration & profile"
+    },
+    {
+      "name": "Categories",
+      "description": "Service categories"
+    },
+    {
+      "name": "Services",
+      "description": "Service catalog"
+    },
+    {
+      "name": "Requests",
+      "description": "Service booking requests"
+    },
+    {
+      "name": "Reviews",
+      "description": "Ratings & reviews"
+    },
+    {
+      "name": "Emergency",
+      "description": "Emergency contact numbers"
+    },
+    {
+      "name": "Admin",
+      "description": "Admin management panel"
+    },
+    {
+      "name": "Chat",
+      "description": "AI assistant"
+    }
+  ],
+  "servers": [],
+  "components": {
+    "securitySchemes": {
+      "JWT": {
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "type": "http"
+      }
+    },
+    "schemas": {
+      "UpdateProfileDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "description": "Full name of the user",
+            "example": "Ahmed Mohamed",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number (any international format)",
+            "example": "20123456789",
+            "pattern": "^[0-9+\\-\\s()]+$"
+          },
+          "governorate": {
+            "type": "string",
+            "description": "Governorate or state name",
+            "example": "Cairo"
+          },
+          "city": {
+            "type": "string",
+            "description": "City name",
+            "example": "Giza"
+          },
+          "gender": {
+            "type": "string",
+            "description": "User gender",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "example": "male"
+          }
+        }
+      },
+      "RegisterDto": {
+        "type": "object",
+        "properties": {
+          "fullName": {
+            "type": "string",
+            "description": "User full name",
+            "example": "Ahmed Mohamed",
+            "minLength": 3,
+            "maxLength": 100
+          },
+          "email": {
+            "type": "string",
+            "description": "Unique email address",
+            "example": "client@example.com",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Account password (minimum 8 characters)",
+            "example": "SecurePass123!",
+            "minLength": 8
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "Password confirmation (must match password field)",
+            "example": "SecurePass123!",
+            "minLength": 8
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number (11 digits for Egypt)",
+            "example": "20123456789",
+            "pattern": "^[0-9]{11}$"
+          },
+          "governorate": {
+            "type": "string",
+            "description": "Governorate/State name",
+            "example": "Cairo"
+          },
+          "city": {
+            "type": "string",
+            "description": "City name",
+            "example": "Giza"
+          },
+          "gender": {
+            "type": "string",
+            "description": "User gender",
+            "enum": [
+              "male",
+              "female"
+            ],
+            "example": "male"
+          }
+        },
+        "required": [
+          "fullName",
+          "email",
+          "password",
+          "confirmPassword",
+          "phone",
+          "governorate",
+          "city",
+          "gender"
+        ]
+      },
+      "LoginDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Registered email address",
+            "example": "client@example.com",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "description": "Account password",
+            "example": "SecurePass123!",
+            "minLength": 8
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ]
+      },
+      "RefreshDto": {
+        "type": "object",
+        "properties": {
+          "refresh_token": {
+            "type": "string",
+            "description": "Refresh token obtained from login",
+            "example": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+          }
+        },
+        "required": [
+          "refresh_token"
+        ]
+      },
+      "ForgetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Registered email address to receive OTP",
+            "example": "client@example.com",
+            "format": "email"
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "VerifyOtpDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address registered for password reset",
+            "example": "client@example.com",
+            "format": "email"
+          },
+          "otp": {
+            "type": "string",
+            "description": "One-time password (6 digits sent to email)",
+            "example": "123456",
+            "minLength": 6,
+            "maxLength": 6
+          }
+        },
+        "required": [
+          "email",
+          "otp"
+        ]
+      },
+      "ResetPasswordDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "description": "Email address verified with OTP",
+            "example": "client@example.com",
+            "format": "email"
+          },
+          "newPassword": {
+            "type": "string",
+            "description": "New password (minimum 8 characters)",
+            "example": "NewSecurePass456!",
+            "minLength": 8
+          },
+          "confirmPassword": {
+            "type": "string",
+            "description": "Confirm new password (must match newPassword)",
+            "example": "NewSecurePass456!",
+            "minLength": 8
+          }
+        },
+        "required": [
+          "email",
+          "newPassword",
+          "confirmPassword"
+        ]
+      },
+      "Step2Dto": {
+        "type": "object",
+        "properties": {
+          "categoryId": {
+            "type": "string",
+            "description": "MongoDB ID of the service category",
+            "example": "60d5ec49c1234567890abc12",
+            "format": "mongodb-id"
+          },
+          "serviceIds": {
+            "description": "Array of MongoDB IDs of selected services",
+            "example": [
+              "60d5ec49c1234567890abc13",
+              "60d5ec49c1234567890abc14"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "categoryId",
+          "serviceIds"
+        ]
+      },
+      "Step3Dto": {
+        "type": "object",
+        "properties": {
+          "yearsOfExperience": {
+            "type": "number",
+            "description": "Years of professional experience",
+            "example": 5
+          },
+          "hasTools": {
+            "type": "boolean",
+            "description": "Does the technician have their own tools",
+            "example": true
+          },
+          "hasTransportation": {
+            "type": "boolean",
+            "description": "Does the technician have their own transportation",
+            "example": true
+          },
+          "workingDays": {
+            "type": "array",
+            "description": "Days available for work",
+            "example": [
+              "السبت",
+              "الأحد"
+            ],
+            "items": {
+              "type": "string",
+              "enum": [
+                "السبت",
+                "الأحد",
+                "الاثنين",
+                "الثلاثاء",
+                "الأربعاء",
+                "الخميس",
+                "الجمعة"
+              ]
+            }
+          },
+          "startTime": {
+            "type": "string",
+            "description": "Start time for work (HH:mm format)",
+            "example": "09:00",
+            "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+          },
+          "endTime": {
+            "type": "string",
+            "description": "End time for work (HH:mm format)",
+            "example": "17:00",
+            "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$"
+          }
+        },
+        "required": [
+          "yearsOfExperience",
+          "hasTools",
+          "hasTransportation",
+          "workingDays",
+          "startTime",
+          "endTime"
+        ]
+      },
+      "Step4Dto": {
+        "type": "object",
+        "properties": {
+          "serviceAreas": {
+            "description": "List of service areas where technician can work",
+            "example": [
+              "Cairo",
+              "Giza",
+              "Helwan"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "canWorkOutsideArea": {
+            "type": "boolean",
+            "description": "Can the technician work outside their service areas",
+            "example": true
+          }
+        },
+        "required": [
+          "serviceAreas",
+          "canWorkOutsideArea"
+        ]
+      },
+      "CreateCategoryDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Unique category key (must be uppercase)",
+            "example": "PLUMBING"
+          },
+          "name": {
+            "type": "string",
+            "description": "Category display name",
+            "example": "Plumbing Services"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the category",
+            "example": "All plumbing related services including pipe fixing, installation, etc."
+          },
+          "image": {
+            "type": "string",
+            "description": "Category image URL or file path",
+            "example": "https://example.com/plumbing.jpg"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether the category is active and visible",
+            "example": true
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "description"
+        ]
+      },
+      "UpdateCategoryDto": {
+        "type": "object",
+        "properties": {
+
+        }
+      },
+      "PriceRangeDto": {
+        "type": "object",
+        "properties": {
+          "min": {
+            "type": "number",
+            "description": "Minimum price for the service",
+            "example": 100,
+            "minimum": 0
+          },
+          "max": {
+            "type": "number",
+            "description": "Maximum price for the service",
+            "example": 500,
+            "minimum": 0
+          }
+        },
+        "required": [
+          "min",
+          "max"
+        ]
+      },
+      "FixingStepsDto": {
+        "type": "object",
+        "properties": {
+          "includes": {
+            "description": "What is included in the service",
+            "example": [
+              "Labor",
+              "Basic materials",
+              "Installation"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "doesNotInclude": {
+            "description": "What is not included in the service",
+            "example": [
+              "Premium materials",
+              "Extended warranty"
+            ],
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "CreateServiceDto": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "description": "Unique service key (must be uppercase)",
+            "example": "PIPE_FIXING"
+          },
+          "name": {
+            "type": "string",
+            "description": "Service display name",
+            "example": "Pipe Fixing and Installation"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed service description",
+            "example": "Professional pipe fixing, replacement and installation service"
+          },
+          "image": {
+            "type": "string",
+            "description": "Service image URL",
+            "example": "https://example.com/pipe-fixing.jpg"
+          },
+          "category": {
+            "type": "string",
+            "description": "MongoDB ID of the category this service belongs to",
+            "example": "60d5ec49c1234567890abc12",
+            "format": "mongodb-id"
+          },
+          "priceRange": {
+            "description": "Price range for this service",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PriceRangeDto"
+              }
+            ]
+          },
+          "fixingSteps": {
+            "description": "Service details including what is included and excluded",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/FixingStepsDto"
+              }
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "Whether this service is active and available",
+            "example": true
+          }
+        },
+        "required": [
+          "key",
+          "name",
+          "category",
+          "priceRange"
+        ]
+      },
+      "UpdateServiceDto": {
+        "type": "object",
+        "properties": {
+
+        }
+      },
+      "AddCommentDto": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "MongoDB ID of the user leaving comment (auto-filled)",
+            "example": "60d5ec49c1234567890abc12",
+            "format": "mongodb-id"
+          },
+          "userName": {
+            "type": "string",
+            "description": "Name of the user leaving comment (auto-filled)",
+            "example": "Ahmed Mohamed"
+          },
+          "userAvatar": {
+            "type": "string",
+            "description": "Avatar URL of the user (auto-filled)",
+            "example": "https://example.com/avatar.jpg"
+          },
+          "rating": {
+            "type": "number",
+            "description": "Rating score (1-5 stars)",
+            "example": 4,
+            "minimum": 1,
+            "maximum": 5
+          },
+          "text": {
+            "type": "string",
+            "description": "Comment text",
+            "example": "Great service, very professional"
+          }
+        },
+        "required": [
+          "rating",
+          "text"
+        ]
+      },
+      "RejectTechnicianDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Reason for rejecting the technician registration",
+            "example": "Incomplete documentation provided",
+            "minLength": 5,
+            "maxLength": 300
+          }
+        },
+        "required": [
+          "reason"
+        ]
+      },
+      "ChatDto": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "User message to send to the AI assistant",
+            "example": "How can I find a plumber near me?"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      },
+      "CoordinatesDto": {
+        "type": "object",
+        "properties": {
+          "lat": {
+            "type": "number",
+            "description": "Latitude coordinate",
+            "example": 30.0444
+          },
+          "lng": {
+            "type": "number",
+            "description": "Longitude coordinate",
+            "example": 31.2357
+          }
+        },
+        "required": [
+          "lat",
+          "lng"
+        ]
+      },
+      "AddressDto": {
+        "type": "object",
+        "properties": {
+          "fullAddress": {
+            "type": "string",
+            "description": "Full address string",
+            "example": "123 Main Street, Cairo, Egypt"
+          },
+          "street": {
+            "type": "string",
+            "description": "Street name and number",
+            "example": "123 Main Street"
+          },
+          "city": {
+            "type": "string",
+            "description": "City name",
+            "example": "Cairo"
+          },
+          "district": {
+            "type": "string",
+            "description": "District or area name",
+            "example": "Giza"
+          },
+          "coordinates": {
+            "description": "Geographic coordinates",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CoordinatesDto"
+              }
+            ]
+          }
+        },
+        "required": [
+          "fullAddress"
+        ]
+      },
+      "CreateRequestDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Brief title of the service request",
+            "example": "Bathroom pipe repair"
+          },
+          "description": {
+            "type": "string",
+            "description": "Detailed description of the service needed",
+            "example": "Water is leaking from the main pipe under the bathroom sink"
+          },
+          "categoryId": {
+            "type": "string",
+            "description": "MongoDB ID of the service category",
+            "example": "60d5ec49c1234567890abc12",
+            "format": "mongodb-id"
+          },
+          "serviceId": {
+            "type": "string",
+            "description": "MongoDB ID of the specific service",
+            "example": "60d5ec49c1234567890abc13",
+            "format": "mongodb-id"
+          },
+          "address": {
+            "description": "Service location details",
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AddressDto"
+              }
+            ]
+          },
+          "preferredDate": {
+            "type": "string",
+            "description": "Preferred date for service (ISO format)",
+            "example": "2024-02-15",
+            "format": "date"
+          },
+          "preferredTime": {
+            "type": "string",
+            "description": "Preferred time for service (HH:mm or h:mm AM/PM)",
+            "example": "14:00",
+            "pattern": "^([0-1]?[0-9]|2[0-3]):[0-5]\\d(\\s?(AM|PM))?$"
+          }
+        },
+        "required": [
+          "title",
+          "description",
+          "categoryId",
+          "serviceId",
+          "address",
+          "preferredDate",
+          "preferredTime"
+        ]
+      },
+      "UpdateStatusDto": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "description": "New status for the request",
+            "enum": [
+              "pending",
+              "in_progress",
+              "completed",
+              "cancelled"
+            ],
+            "example": "in_progress"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "CancelRequestDto": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "description": "Reason for canceling the request",
+            "example": "Found another technician",
+            "maxLength": 500
+          }
+        }
+      },
+      "CreateEmergencyDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "description": "Type of emergency contact",
+            "enum": [
+              "urgent",
+              "utilities",
+              "social"
+            ],
+            "example": "urgent"
+          },
+          "name": {
+            "type": "string",
+            "description": "Name of the emergency service",
+            "example": "Red Crescent Hospital"
+          },
+          "phone": {
+            "type": "string",
+            "description": "Phone number for the emergency service",
+            "example": "20123456789",
+            "pattern": "^[0-9+\\-\\s()]+$"
+          },
+          "description": {
+            "type": "string",
+            "description": "Description of the emergency service",
+            "example": "Main hospital in Cairo"
+          },
+          "icon": {
+            "type": "string",
+            "description": "Icon URL for the emergency type",
+            "example": "https://example.com/urgent-icon.png"
+          }
+        },
+        "required": [
+          "type",
+          "name",
+          "phone"
+        ]
+      },
+      "UpdateEmergencyDto": {
+        "type": "object",
+        "properties": {
+
+        }
+      },
+      "CreateReviewDto": {
+        "type": "object",
+        "properties": {
+          "requestId": {
+            "type": "string",
+            "description": "MongoDB ID of the completed service request",
+            "example": "60d5ec49c1234567890abc12",
+            "format": "mongodb-id"
+          },
+          "rating": {
+            "type": "number",
+            "description": "Rating score (1-5 stars)",
+            "example": 5,
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string",
+            "description": "Optional comment about the service",
+            "example": "Excellent service, very professional and punctual"
+          }
+        },
+        "required": [
+          "requestId",
+          "rating"
+        ]
+      },
+      "UpdateReviewDto": {
+        "type": "object",
+        "properties": {
+          "rating": {
+            "type": "number",
+            "description": "Updated rating score (1-5 stars)",
+            "example": 4,
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string",
+            "description": "Updated review comment",
+            "example": "Very good service"
+          }
+        }
+      }
+    }
+  }
+}
