@@ -147,13 +147,15 @@ export class PaymentService {
     if (request.status !== RequestStatus.COMPLETED)
       throw new BadRequestException('Request must be completed first');
 
-    if (request.depositStatus !== DepositStatus.PAID)
+    if (request.isFullyPaid)
+      throw new BadRequestException('Already fully paid');
+
+    if (request.depositStatus === DepositStatus.UNPAID)
       throw new BadRequestException('Deposit must be paid first');
 
     if (!request.totalPrice || request.totalPrice === 0)
       throw new BadRequestException('Total price not set yet');
-    if (request.isFullyPaid)
-      throw new BadRequestException('Already fully paid');
+    
 
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
