@@ -1,6 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document, Types } from 'mongoose';
-import { RequestStatus } from '../enums/request-status.enum';
+import { DepositStatus, RequestStatus } from '../enums/request-status.enum';
 import { UserRole } from 'src/users/schemas/user.schema';
 export type RequestDocument = MainRequest & Document;
 
@@ -37,6 +37,25 @@ export class MainRequest {
 
   @Prop({ type: Types.ObjectId, ref: 'User', default: null })
   assignedTechnician: Types.ObjectId | null;
+
+  @Prop({ default: 50 })
+  depositAmount: number;
+
+  @Prop({
+    type: String,
+    enum: Object.values(DepositStatus),
+    default: DepositStatus.UNPAID,
+  })
+  depositStatus: DepositStatus;
+
+  @Prop({ default: 0 })
+  totalPrice: number;
+
+  @Prop({ type: Types.ObjectId, ref: 'Payment', default: null })
+  paymentId: Types.ObjectId | null;
+
+  @Prop({ default: false })
+  isFullyPaid: boolean;
 
   // createdAt & updatedAt auto-added by { timestamps: true }
   createdAt: Date;
