@@ -4,8 +4,9 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import * as express from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
-import express from 'express';
+
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);

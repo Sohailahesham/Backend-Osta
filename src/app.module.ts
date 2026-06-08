@@ -13,10 +13,14 @@ import { AssistantModule } from './assistant/assistant.module';
 import { RequestModule } from './request/request.module';
 import { EmergencyModule } from './emergency/emergency.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { PaymentModule } from './payment/payment.module';
+import { ScheduleModule } from '@nestjs/schedule';
+
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ScheduleModule.forRoot(),
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -34,6 +38,7 @@ import { ReviewsModule } from './reviews/reviews.module';
     RequestModule,
     EmergencyModule,
     ReviewsModule,
+    PaymentModule,
   ],
   controllers: [AppController],
   providers: [AppService],
