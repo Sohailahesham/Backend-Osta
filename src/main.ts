@@ -4,21 +4,54 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import express from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
-  app.useGlobalPipes(
-    new ValidationPipe({
-      whitelist: true,
-    }),
-  );
+
+  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
   app.enableCors({
     origin: ['http://localhost:3001', 'http://localhost:3000'],
     credentials: true,
   });
+
+  //* ── Swagger ──────────────────────────────────────────────
+  const config = new DocumentBuilder()
+    .setTitle('Osta API')
+    .setDescription(
+      'Home services marketplace — connecting clients with verified technicians',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'JWT',
+    )
+    .addTag('Auth', 'Register, login, tokens, Google OAuth, OTP')
+    .addTag('Users', 'Client profile management')
+    .addTag('Technician', 'Multi-step registration & profile')
+    .addTag('Categories', 'Service categories')
+    .addTag('Services', 'Service catalog')
+    .addTag('Requests', 'Service booking requests')
+    .addTag('Reviews', 'Ratings & reviews')
+    .addTag('Emergency', 'Emergency contact numbers')
+    .addTag('Admin', 'Admin management panel')
+    .addTag('Chat', 'AI assistant')
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    swaggerOptions: { persistAuthorization: true },
+  });
+
+  app.getHttpAdapter().get('/api-json', (req, res: express.Response) => {
+    res.json(document);
+  });
+
   await app.listen(3000);
   console.log('Server running on http://localhost:3000');
+  console.log('Swagger docs: http://localhost:3000/api/docs');
 }
 bootstrap();

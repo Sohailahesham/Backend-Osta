@@ -24,6 +24,11 @@ import {
   TechnicianDocument,
   VerificationStatus,
 } from './schemas/technician.schema';
+import {
+  MainRequest,
+  RequestDocument,
+} from 'src/request/schemas/request.schema';
+import { RequestStatus } from 'src/request/enums/request-status.enum';
 
 @Injectable()
 export class TechnicianService {
@@ -34,6 +39,8 @@ export class TechnicianService {
     @InjectModel(Category.name) private categoryModel: Model<CategoryDocument>,
     @InjectModel(ServiceEntity.name)
     private serviceModel: Model<ServiceDocument>,
+    @InjectModel(MainRequest.name)
+    private requestModel: Model<RequestDocument>,
   ) {}
 
   private toTechnicianDataDto(data: any) {
@@ -129,13 +136,10 @@ export class TechnicianService {
 
   async getTechData(userId: string) {
     const technician = await this.technicianModel
-      .findOne({ userId })
-      .populate(
-        'userId',
-        '-password -refreshToken -otp -otpExpires -verificationToken -verificationTokenExpires',
-      )
-      .lean()
-      .exec();
+    .findOne({ userId: new Types.ObjectId(userId) })
+    .populate('userId')
+    .lean()
+    .exec();
 
     if (!technician) throw new NotFoundException('Technician not found');
 
@@ -144,7 +148,87 @@ export class TechnicianService {
 
     return {
       message: 'Technician data fetched successfully',
-      data: technician,
+      data: this.toTechnicianDataDto(technician),
+    };
+  }
+
+  async getDashboard(userId: string) {
+    //* Technician document
+    const technician = await this.technicianModel
+    .findOne({ userId: new Types.ObjectId(userId) })
+    .select(
+      'verificationStatus isAvailable averageRating totalReviews currentStep isProfileComplete',
+    )
+    .lean();
+
+    if (!technician) throw new NotFoundException('Technician not found');
+
+    const [stats, recentRequests, activeRequest] = await Promise.all([
+      //* 1. request stats by status
+      this.requestModel.aggregate([
+        { $match: { assignedTechnician: new Types.ObjectId(userId) } },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+          },
+        },
+      ]),
+
+      //* 2. last 5 requests
+      this.requestModel
+      .find({ assignedTechnician: new Types.ObjectId(userId) })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('userId', 'fullName phone')
+      .populate('serviceId', 'title price')
+      .select('title status preferredDate preferredTime createdAt')
+      .lean(),
+
+      //* 3. active request
+      this.requestModel
+      .findOne({
+        assignedTechnician: new Types.ObjectId(userId),
+        status: RequestStatus.IN_PROGRESS,
+      })
+      .populate('userId', 'fullName phone governorate city')
+      .populate('serviceId', 'title price')
+      .lean(),
+    ]);
+
+    //* 4. counts of each status
+    const counts = {
+      total: 0,
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+
+    for (const item of stats) {
+      counts.total += item.count;
+      if (item._id === RequestStatus.PENDING) counts.pending = item.count;
+      if (item._id === RequestStatus.IN_PROGRESS)
+        counts.inProgress = item.count;
+      if (item._id === RequestStatus.COMPLETED) counts.completed = item.count;
+      if (item._id === RequestStatus.CANCELLED) counts.cancelled = item.count;
+    }
+
+    return {
+      message: 'Technician Dashboard retrieved successfully',
+      data: {
+        profile: {
+          verificationStatus: technician.verificationStatus,
+          isAvailable: technician.isAvailable,
+          averageRating: technician.averageRating,
+          totalReviews: technician.totalReviews,
+          currentStep: technician.currentStep,
+          isProfileComplete: technician.isProfileComplete,
+        },
+        stats: counts,
+        activeRequest: activeRequest ?? null,
+        recentRequests,
+      },
     };
   }
 }

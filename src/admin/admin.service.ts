@@ -16,6 +16,11 @@ import { AdminTechnicianDto } from './dto/admin-technician-response.dto';
 import { AdminUserResponseDto } from './dto/admin-user-response.dto';
 import { AdminUsersQueryDto } from './dto/admin-users-query.dto';
 import { PaginationDto } from 'src/common/dto/pagination.dto';
+import {
+  MainRequest,
+  RequestDocument,
+} from 'src/request/schemas/request.schema';
+import { RequestStatus } from 'src/request/enums/request-status.enum';
 
 @Injectable()
 export class AdminService {
@@ -24,6 +29,8 @@ export class AdminService {
     private readonly userModel: Model<UserDocument>,
     @InjectModel(Technician.name)
     private technicianModel: Model<TechnicianDocument>,
+    @InjectModel(MainRequest.name)
+    private requestModel: Model<RequestDocument>,
   ) {}
 
   //* private methods to transform data
@@ -245,6 +252,108 @@ export class AdminService {
     return {
       message: 'Role updated successfully',
       data: this.toAdminUserDto(updatedUser),
+    };
+  }
+
+  //* get dashboard
+  async getDashboard() {
+    const [
+      userStats,
+      technicianStats,
+      requestStats,
+      recentRequests,
+      topTechnicians,
+    ] = await Promise.all([
+      //* get all users with filtering by role
+      this.userModel.aggregate([
+        { $group: { _id: '$role', count: { $sum: 1 } } },
+      ]),
+
+      //* get all pending technicians
+      this.technicianModel.aggregate([
+        { $group: { _id: '$verificationStatus', count: { $sum: 1 } } },
+      ]),
+
+      //* get all requests
+      this.requestModel.aggregate([
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+      ]),
+
+      //* last 5 requests
+      this.requestModel
+      .find()
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .populate('userId', 'fullName')
+      .populate('serviceId', 'title')
+      .select('title status createdAt preferredDate')
+      .lean(),
+
+      //* top 5 technicians
+      this.technicianModel
+      .find({ verificationStatus: VerificationStatus.APPROVED })
+      .sort({ averageRating: -1 })
+      .limit(5)
+      .populate('userId', 'fullName phone')
+      .select('averageRating totalReviews isAvailable')
+      .lean(),
+    ]);
+
+    //* users aggregate
+    const users = { total: 0, clients: 0, technicians: 0, admins: 0 };
+    for (const item of userStats) {
+      users.total += item.count;
+      if (item._id === UserRole.CLIENT) users.clients = item.count;
+      if (item._id === UserRole.TECHNICIAN) users.technicians = item.count;
+      if (item._id === UserRole.ADMIN) users.admins = item.count;
+    }
+
+    //* technicians aggregate
+    const technicians = {
+      total: 0,
+      approved: 0,
+      pending: 0,
+      rejected: 0,
+      incomplete: 0,
+    };
+    for (const item of technicianStats) {
+      technicians.total += item.count;
+      if (item._id === VerificationStatus.APPROVED)
+        technicians.approved = item.count;
+      if (item._id === VerificationStatus.PENDING)
+        technicians.pending = item.count;
+      if (item._id === VerificationStatus.REJECTED)
+        technicians.rejected = item.count;
+      if (item._id === VerificationStatus.INCOMPLETE)
+        technicians.incomplete = item.count;
+    }
+
+    //* requests aggregate
+    const requests = {
+      total: 0,
+      pending: 0,
+      inProgress: 0,
+      completed: 0,
+      cancelled: 0,
+    };
+    for (const item of requestStats) {
+      requests.total += item.count;
+      if (item._id === RequestStatus.PENDING) requests.pending = item.count;
+      if (item._id === RequestStatus.IN_PROGRESS)
+        requests.inProgress = item.count;
+      if (item._id === RequestStatus.COMPLETED) requests.completed = item.count;
+      if (item._id === RequestStatus.CANCELLED) requests.cancelled = item.count;
+    }
+
+    return {
+      message: 'Admin Dashboard retrieved successfully',
+      data: {
+        users,
+        technicians,
+        requests,
+        recentRequests,
+        topTechnicians,
+      },
     };
   }
 }
