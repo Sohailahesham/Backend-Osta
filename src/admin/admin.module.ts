@@ -7,6 +7,7 @@ import {
   Technician,
   TechnicianSchema,
 } from '../technician/schemas/technician.schema';
+import { MainRequest, RequestSchema } from 'src/request/schemas/request.schema';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import {
         schema: UserSchema,
       },
       { name: Technician.name, schema: TechnicianSchema },
+      { name: MainRequest.name, schema: RequestSchema },
     ]),
   ],
   controllers: [AdminController],

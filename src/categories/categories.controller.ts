@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
   Body,
   Controller,
@@ -18,12 +19,15 @@ import { RolesGuard } from 'src/common/guards/roles.guard';
 import { RoleDecorator } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/users/schemas/user.schema';
 import { ParseMongoIdPipe } from 'src/common/pipes/parse-mongo-id.pipe';
+import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Categories')
 @Controller('categories')
 export class CategoriesController {
   constructor(private readonly categoriesService: CategoriesService) {}
 
   //* ── Public (read only) ───────────────────────────────────────────────
+  @ApiOperation({ summary: 'Get all active categories' })
   @Get()
   async findAll() {
     const data = await this.categoriesService.findAll();
@@ -31,6 +35,7 @@ export class CategoriesController {
   }
 
   // GET /api/categories/:id
+  @ApiOperation({ summary: 'Get category by ID' })
   @Get(':id')
   async findOne(@Param('id', ParseMongoIdPipe) id: string) {
     const data = await this.categoriesService.findOne(id);
@@ -38,6 +43,8 @@ export class CategoriesController {
   }
 
   //* ── Admin only (write) ───────────────────────────────────────────────
+  @ApiOperation({ summary: '[Admin] Create a new category' })
+  @ApiBearerAuth('JWT')
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @RoleDecorator(UserRole.ADMIN)
@@ -46,6 +53,8 @@ export class CategoriesController {
     return { message: 'Category created successfully', data };
   }
 
+  @ApiOperation({ summary: '[Admin] Update category' })
+  @ApiBearerAuth('JWT')
   @Patch(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @RoleDecorator(UserRole.ADMIN)
@@ -58,6 +67,8 @@ export class CategoriesController {
   }
 
   // PATCH /api/categories/:id/toggle-active
+  @ApiOperation({ summary: '[Admin] Toggle category active/inactive' })
+  @ApiBearerAuth('JWT')
   @Patch(':id/toggle-active')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @RoleDecorator(UserRole.ADMIN)
@@ -70,6 +81,8 @@ export class CategoriesController {
   }
 
   // DELETE /api/categories/:id
+  @ApiOperation({ summary: '[Admin] Delete category' })
+  @ApiBearerAuth('JWT')
   @Delete(':id')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AuthGuard('jwt'), RolesGuard)

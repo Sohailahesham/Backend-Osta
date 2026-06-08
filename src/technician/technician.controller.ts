@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
@@ -22,27 +23,58 @@ import { Step3Dto } from './dto/step3.dto';
 import { Step4Dto } from './dto/step4.dto';
 import * as fs from 'fs';
 import { TechnicianGuard } from 'src/auth/guards/technician.guard';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOperation,
+  ApiTags,
+} from '@nestjs/swagger';
 
+@ApiTags('Technician')
+@ApiBearerAuth('JWT')
 @Controller('technician')
 @UseGuards(AuthGuard('jwt'), TechnicianGuard)
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 
+  @ApiOperation({
+    summary: 'Step 2 — Set specialization (categoryId + serviceIds)',
+  })
   @Post('step2')
   step2(@Req() req, @Body() dto: Step2Dto) {
     return this.technicianService.updateStep2(req.user.userId, dto);
   }
 
+  @ApiOperation({
+    summary: 'Step 3 — Professional info (experience, tools, schedule)',
+  })
   @Post('step3')
   step3(@Req() req, @Body() dto: Step3Dto) {
     return this.technicianService.updateStep3(req.user.userId, dto);
   }
 
+  @ApiOperation({ summary: 'Step 4 — Service areas' })
   @Post('step4')
   step4(@Req() req, @Body() dto: Step4Dto) {
     return this.technicianService.updateStep4(req.user.userId, dto);
   }
 
+  @ApiOperation({ summary: 'Step 5 — Upload documents (multipart/form-data)' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['personalImage', 'idFrontImage', 'idBackImage'],
+      properties: {
+        personalImage: { type: 'string', format: 'binary' },
+        idFrontImage: { type: 'string', format: 'binary' },
+        idBackImage: { type: 'string', format: 'binary' },
+        certificateImage: { type: 'string', format: 'binary' },
+        criminalRecordImage: { type: 'string', format: 'binary' },
+      },
+    },
+  })
   @Post('step5')
   @UseInterceptors(
     FileFieldsInterceptor(
@@ -116,8 +148,15 @@ export class TechnicianController {
     });
   }
 
+  @ApiOperation({ summary: 'Get technician profile and registration details' })
   @Get('details')
   profile(@Req() req) {
     return this.technicianService.getTechData(req.user.userId);
+  }
+
+  @ApiOperation({ summary: 'Get technician dashboard' })
+  @Get('dashboard')
+  dashboard(@Req() req) {
+    return this.technicianService.getDashboard(req.user.userId);
   }
 }

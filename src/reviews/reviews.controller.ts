@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
   Body,
   Controller,
@@ -17,11 +18,15 @@ import { RoleDecorator } from 'src/common/decorators/role.decorator';
 import { UserRole } from 'src/users/schemas/user.schema';
 import { ParseMongoIdPipe } from 'src/common/pipes/parse-mongo-id.pipe';
 import { UpdateReviewDto } from './dto/update-review.dto';
+import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 
+@ApiTags('Reviews')
 @Controller('reviews')
 export class ReviewsController {
   constructor(private readonly reviewsService: ReviewsService) {}
 
+  @ApiOperation({ summary: '[Client] Submit a review for a completed request' })
+  @ApiBearerAuth('JWT')
   @Post()
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @RoleDecorator(UserRole.CLIENT)
@@ -29,16 +34,20 @@ export class ReviewsController {
     return this.reviewsService.create(req.user.userId, dto);
   }
 
+  @ApiOperation({ summary: 'Get all reviews for a technician' })
   @Get('technician/:id')
   findByTechnician(@Param('id', ParseMongoIdPipe) id: string) {
     return this.reviewsService.findByTechnician(id);
   }
 
+  @ApiOperation({ summary: 'Get all reviews for a service' })
   @Get('service/:id')
   findByService(@Param('id', ParseMongoIdPipe) id: string) {
     return this.reviewsService.findByService(id);
   }
 
+  @ApiOperation({ summary: '[Client] Edit own review' })
+  @ApiBearerAuth('JWT')
   @Patch(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @RoleDecorator(UserRole.CLIENT)
@@ -50,6 +59,8 @@ export class ReviewsController {
     return this.reviewsService.update(id, req.user.userId, dto);
   }
 
+  @ApiOperation({ summary: '[Client] Delete own review' })
+  @ApiBearerAuth('JWT')
   @Delete(':id')
   @UseGuards(AuthGuard('jwt'), RolesGuard)
   @RoleDecorator(UserRole.CLIENT)
