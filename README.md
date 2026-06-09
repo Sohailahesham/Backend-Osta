@@ -1,98 +1,255 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+<div align="center">
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+# 🔧 Osta — أُسطى
+### Home Services Marketplace — Backend API
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+**Connecting clients with verified home service technicians**
 
-## Description
+![NestJS](https://img.shields.io/badge/NestJS-E0234E?style=for-the-badge&logo=nestjs&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT-000000?style=for-the-badge&logo=jsonwebtokens&logoColor=white)
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+</div>
 
-## Project setup
+---
 
-```bash
-$ npm install
-```
+## 📖 About
 
-## Compile and run the project
+**Osta (أُسطى)** is a home services marketplace platform that connects clients with verified technicians for services such as plumbing, electrical work, AC repair, and more.
 
-```bash
-# development
-$ npm run start
+The platform supports three roles:
+- **Client** — browse services, place requests, track orders, leave reviews
+- **Technician** — complete a multi-step registration, get verified, receive and manage requests
+- **Admin** — manage users, approve/reject technicians, oversee all platform activity
 
-# watch mode
-$ npm run start:dev
+---
 
-# production mode
-$ npm run start:prod
-```
+## 🏗️ Tech Stack
 
-## Run tests
+| Layer | Technology |
+|---|---|
+| Framework | NestJS (Node.js + TypeScript) |
+| Database | MongoDB + Mongoose |
+| Authentication | JWT (Access + Refresh tokens) + Passport |
+| OAuth | Google OAuth 2.0 |
+| File Uploads | Multer (local disk storage) |
+| Validation | class-validator + class-transformer |
+| Documentation | Swagger / OpenAPI |
+| AI Assistant | OpenAI API |
 
-```bash
-# unit tests
-$ npm run test
+---
 
-# e2e tests
-$ npm run test:e2e
+## 🚀 Getting Started
 
-# test coverage
-$ npm run test:cov
-```
+### Prerequisites
 
-## Deployment
+- Node.js v18+
+- MongoDB (local or Atlas)
+- npm
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+### Installation
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# 1. Clone the repository
+git clone https://github.com/Sohailahesham/Backend-Osta.git
+cd Backend-Osta
+
+# 2. Install dependencies
+npm install
+
+# 3. Set up environment variables
+cp .env.example .env
+# Fill in your values in .env
+
+# 4. Seed the first admin user
+npm run seed:admin
+
+# 5. Start the development server
+npm run start:dev
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+### Environment Variables
 
-## Resources
+```env
+MONGO_URI=mongodb://localhost:27017/osta
+JWT_SECRET=your_jwt_secret_here
+JWT_REFRESH_SECRET=your_refresh_secret_here
+PORT=3000
+ALLOWED_ORIGINS=http://localhost:3001
 
-Check out a few resources that may come in handy when working with NestJS:
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
+FRONTEND_URL=http://localhost:3001
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+OPENAI_API_KEY=your_openai_key
+```
 
-## Support
+---
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+## 📚 API Documentation
 
-## Stay in touch
+After starting the server, visit:
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+```
+http://localhost:3000/api/docs
+```
 
-## License
+Full interactive Swagger UI with all endpoints, request/response schemas, and JWT authorization.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+---
+
+## 📡 API Endpoints
+
+### 🔐 Auth
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/auth/register/user` | Register as client | Public |
+| POST | `/auth/register/technician` | Register as technician | Public |
+| POST | `/auth/login` | Login | Public |
+| POST | `/auth/refresh` | Refresh access token | Public |
+| POST | `/auth/logout` | Logout | JWT |
+| POST | `/auth/forget-password` | Send OTP to email | Public |
+| POST | `/auth/verify-otp` | Verify OTP code | Public |
+| POST | `/auth/reset-password` | Reset password | Public |
+| POST | `/auth/send-verification` | Send email verification | JWT |
+| GET | `/auth/verify-email` | Verify email via link | Public |
+| GET | `/auth/google` | Google OAuth login | Public |
+| GET | `/auth/google/callback` | Google OAuth callback | Public |
+
+### 👤 Users (Client)
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| GET | `/users/me` | Get my profile | JWT |
+| PATCH | `/users/me` | Update my profile | JWT |
+| GET | `/users/dashboard` | Get client dashboard stats | JWT |
+
+### 🔧 Technician
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/technician/step2` | Set specialization | JWT |
+| POST | `/technician/step3` | Professional info | JWT |
+| POST | `/technician/step4` | Service areas | JWT |
+| POST | `/technician/step5` | Upload documents | JWT |
+| GET | `/technician/details` | Get technician profile | JWT |
+| GET | `/technician/dashboard` | Get technician dashboard | JWT |
+
+### 📂 Categories
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| GET | `/categories` | List all categories | Public |
+| GET | `/categories/:id` | Get category by ID | Public |
+| POST | `/categories` | Create category | Admin |
+| PATCH | `/categories/:id` | Update category | Admin |
+| PATCH | `/categories/:id/toggle-active` | Toggle active | Admin |
+| DELETE | `/categories/:id` | Delete category | Admin |
+
+### 🛠️ Services
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| GET | `/services` | List services (filter by category) | Public |
+| GET | `/services/most-common` | Top 6 most common | Public |
+| GET | `/services/:id` | Get service by ID | Public |
+| GET | `/services/:id/comments` | Get comments | Public |
+| POST | `/services` | Create service | Admin |
+| PATCH | `/services/:id` | Update service | Admin |
+| PATCH | `/services/:id/toggle-active` | Toggle active | Admin |
+| DELETE | `/services/:id` | Delete service | Admin |
+| POST | `/services/:id/comments` | Add comment | JWT |
+| DELETE | `/services/:serviceId/comments/:commentId` | Delete comment | JWT |
+
+### 📋 Requests
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/requests` | Create service request | JWT (Client) |
+| GET | `/requests` | Get all requests | JWT (Admin) |
+| GET | `/requests/my` | Get my requests | JWT (Client) |
+| GET | `/requests/pending` | Get pending requests | JWT (Technician) |
+| GET | `/requests/assigned` | Get assigned requests | JWT (Technician) |
+| GET | `/requests/:id` | Get request by ID | JWT |
+| PATCH | `/requests/:id/accept` | Accept request | JWT (Technician) |
+| PATCH | `/requests/:id/complete` | Complete request | JWT (Technician) |
+| PATCH | `/requests/:id/cancel` | Cancel request | JWT |
+| PATCH | `/requests/:id/status` | Override status | JWT (Admin) |
+| DELETE | `/requests/:id` | Delete request | JWT (Admin) |
+
+### ⭐ Reviews
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/reviews` | Submit review | JWT (Client) |
+| GET | `/reviews/technician/:id` | Technician reviews | Public |
+| GET | `/reviews/service/:id` | Service reviews | Public |
+| PATCH | `/reviews/:id` | Edit review | JWT (Client) |
+| DELETE | `/reviews/:id` | Delete review | JWT (Client) |
+
+### 🚨 Emergency
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| GET | `/emergency` | List emergency numbers | Public |
+| POST | `/admin/emergency` | Add emergency number | Admin |
+| PATCH | `/admin/emergency/:id` | Update emergency number | Admin |
+| DELETE | `/admin/emergency/:id` | Delete emergency number | Admin |
+
+### 👑 Admin
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/admin/dashboard` | Platform stats overview |
+| GET | `/admin/users` | List all users (paginated) |
+| GET | `/admin/users/:id` | Get user by ID |
+| GET | `/admin/technicians` | List approved technicians |
+| GET | `/admin/technicians/pending` | List pending technicians |
+| GET | `/admin/technicians/:id` | Get technician by ID |
+| PATCH | `/admin/technicians/:id/approve` | Approve technician |
+| PATCH | `/admin/technicians/:id/reject` | Reject technician |
+| PATCH | `/admin/users/:id/set-admin-role` | Promote user to admin |
+
+### 🤖 AI Assistant
+| Method | Endpoint | Description | Auth |
+|---|---|---|---|
+| POST | `/chat` | Chat with AI assistant | Public |
+
+---
+
+## 🗂️ Project Structure
+
+```
+src/
+├── admin/          — Admin management (users, technicians, dashboard)
+├── assistant/      — AI chat assistant
+├── auth/           — Authentication (JWT, Google OAuth, OTP, email verify)
+├── categories/     — Service categories
+├── common/         — Shared (guards, pipes, decorators, interceptors, DTOs)
+├── emergency/      — Emergency contact numbers
+├── request/        — Service booking requests
+├── reviews/        — Ratings & reviews
+├── services/       — Service catalog
+├── technician/     — Technician registration & profile
+└── users/          — Client profile management
+```
+
+---
+
+## 🔒 Security
+
+- JWT access tokens (short-lived) + refresh tokens (long-lived)
+- Passwords hashed with bcryptjs
+- Role-based access control (Client / Technician / Admin)
+- Google OAuth 2.0 integration
+- Email verification flow
+- OTP-based password reset
+- Request body whitelisting via ValidationPipe
+
+---
+
+## 👥 Team
+
+Built as a graduation project at ITI — intake 45.
+
+---
+
+## 📄 License
+
+Copyright (c) 2026 Osta Team. All Rights Reserved.
+
+This software is proprietary and confidential. Unauthorized use, copying, or distribution is strictly prohibited.
