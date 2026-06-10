@@ -21,7 +21,8 @@ import {
   DepositStatus,
   RequestStatus,
 } from 'src/request/enums/request-status.enum';
-import { PaymentMethod } from './enums/payment-method.enum';
+import { Invoice, InvoiceDocument } from 'src/invoice/schemas/invoice.schema';
+import { InvoiceService } from 'src/invoice/invoice.service';
 
 @Injectable()
 export class PaymentService {
@@ -29,19 +30,24 @@ export class PaymentService {
     @InjectModel(Payment.name) private paymentModel: Model<PaymentDocument>,
     @InjectModel(MainRequest.name) private requestModel: Model<RequestDocument>,
     @InjectModel(User.name) private userModel: Model<UserDocument>,
+    @InjectModel(Invoice.name) private invoiceModel: Model<InvoiceDocument>,
     private paymobService: PaymobService,
+    private invoiceService: InvoiceService,
   ) {}
+
 
   async payDeposit(
     requestId: string,
     userId: string,
-    method: PaymentMethod = PaymentMethod.CARD,
   ) {
     const request = await this.requestModel.findById(requestId);
     if (!request) throw new NotFoundException('Request not found');
 
     if (request.userId.toString() !== userId)
       throw new BadRequestException('Not authorized');
+
+    if (request.isFullyPaid)
+      throw new BadRequestException('Request is already fully paid');
 
     if (request.status !== RequestStatus.ACCEPTED)
       throw new BadRequestException(
@@ -50,9 +56,6 @@ export class PaymentService {
 
     if (request.depositStatus !== DepositStatus.UNPAID)
       throw new BadRequestException('Deposit already paid or pending');
-
-    if (request.isFullyPaid)
-      throw new BadRequestException('Request is already fully paid');
 
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -67,22 +70,14 @@ export class PaymentService {
       status: PaymentStatus.PENDING,
     });
 
-    const { paymentUrl, orderId } =
-      method === PaymentMethod.WALLET
-        ? await this.paymobService.getWalletPaymentUrl(request.depositAmount, {
-            email: user.email,
-            fullName: user.fullName,
-            phone: user.phone ?? 'N/A',
-          })
-        : await this.paymobService.getPaymentUrl(
-            request.depositAmount,
-            {
-              email: user.email,
-              fullName: user.fullName,
-              phone: user.phone ?? 'N/A',
-            },
-            method,
-          );
+    const { paymentUrl, orderId } = await this.paymobService.getPaymentUrl(
+      request.depositAmount,
+      {
+        email: user.email,
+        fullName: user.fullName,
+        phone: user.phone ?? 'N/A',
+      },
+    );
 
     await this.paymentModel.findByIdAndUpdate(payment._id, {
       paymobOrderId: orderId,
@@ -96,7 +91,6 @@ export class PaymentService {
   }
 
   async handleWebhook(body: any, hmac: string) {
-
     const isValid = this.paymobService.verifyHmac(body, hmac);
     if (!isValid) throw new BadRequestException('Invalid HMAC');
 
@@ -114,7 +108,6 @@ export class PaymentService {
         paidAt: new Date(),
       });
 
-      //  deposit
       if (payment.type === PaymentType.DEPOSIT) {
         await this.requestModel.findByIdAndUpdate(payment.requestId, {
           depositStatus: DepositStatus.PAID,
@@ -122,21 +115,28 @@ export class PaymentService {
         });
       }
 
-      //  remaining
       if (payment.type === PaymentType.REMAINING) {
         await this.requestModel.findByIdAndUpdate(payment.requestId, {
-          status: RequestStatus.COMPLETED,
           isFullyPaid: true,
+          status: RequestStatus.COMPLETED,
         });
+
+        await this.invoiceService.markAsPaid(payment.requestId.toString());
+
+        const invoice = await this.invoiceService.findByRequestId(
+          payment.requestId.toString(),
+        );
+
+        return { message: 'Payment successful', invoice };
       }
     }
+
     return { message: 'Webhook handled' };
   }
 
   async payRemaining(
     requestId: string,
     userId: string,
-    method: PaymentMethod = PaymentMethod.CARD,
   ) {
     const request = await this.requestModel.findById(requestId);
     if (!request) throw new NotFoundException('Request not found');
@@ -155,7 +155,6 @@ export class PaymentService {
 
     if (!request.totalPrice || request.totalPrice === 0)
       throw new BadRequestException('Total price not set yet');
-    
 
     const user = await this.userModel.findById(userId);
     if (!user) throw new NotFoundException('User not found');
@@ -176,26 +175,18 @@ export class PaymentService {
       status: PaymentStatus.PENDING,
     });
 
-    const { paymentUrl, orderId } =
-      method === PaymentMethod.WALLET
-        ? await this.paymobService.getWalletPaymentUrl(remainingAmount, {
-            email: user.email,
-            fullName: user.fullName,
-            phone: user.phone ?? 'N/A',
-          })
-        : await this.paymobService.getPaymentUrl(
-            remainingAmount,
-            {
-              email: user.email,
-              fullName: user.fullName,
-              phone: user.phone ?? 'N/A',
-            },
-            method,
-          );
-
+    const { paymentUrl, orderId } = await this.paymobService.getPaymentUrl(
+  remainingAmount,
+  { email: user.email, fullName: user.fullName, phone: user.phone ?? 'N/A' },
+);
     await this.paymentModel.findByIdAndUpdate(payment._id, {
       paymobOrderId: orderId,
     });
+    await this.requestModel.findByIdAndUpdate(requestId, {
+      paymentId: payment._id,
+    });
+
+    
 
     return {
       message: 'Payment initiated',

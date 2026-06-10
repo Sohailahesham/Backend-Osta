@@ -123,4 +123,105 @@ export class MailService {
         : 'حاول مرة أخرى أو اطلب رسالة تأكيد جديدة.',
     });
   }
+
+  async sendInvoiceEmail(
+    email: string,
+    data: {
+      invoiceNumber: string;
+      clientName: string;
+      technicianName: string;
+      serviceName: string;
+      completionNote: string;
+      depositAmount: number;
+      totalPrice: number;
+      remainingAmount: number;
+      createdAt: Date;
+    },
+  ) {
+    await this.transporter.sendMail({
+      from: `"Osta App" <${process.env.MAIL_USER}>`,
+      to: email,
+      subject: `فاتورة ${data.invoiceNumber} - أوسطا`,
+      html: `
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>فاتورة - أوسطا</title>
+  </head>
+  <body>
+    <div style="margin: 0; padding: 40px 20px; background: #f4f8f4; font-family: Segoe UI, Arial, sans-serif; direction: rtl; text-align: right;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+        
+        <!-- Header -->
+        <div style="background: #1b5e20; padding: 30px; text-align: center">
+          <h1 style="margin: 0; color: white; font-size: 34px">أوسطا 🔧</h1>
+          <p style="color: #d8ead9; margin-top: 10px; font-size: 15px">منصة الخدمات الاحترافية</p>
+        </div>
+
+        <!-- Icon -->
+        <div style="padding: 40px 30px 20px; text-align: center">
+          <div style="width: 90px; height: 90px; margin: auto; border-radius: 50%; background: #e8f5e9; line-height: 90px; font-size: 42px;">
+            🧾
+          </div>
+          <h2 style="color: #1b5e20; margin-top: 25px">فاتورة مدفوعة بالكامل</h2>
+          <p style="color: #888; font-size: 14px;">رقم الفاتورة: <strong style="color: #1b5e20;">${data.invoiceNumber}</strong></p>
+          <p style="color: #888; font-size: 14px;">التاريخ: <strong>${new Date(data.createdAt).toLocaleDateString('ar-EG')}</strong></p>
+        </div>
+
+        <!-- Details -->
+        <div style="padding: 0 30px 30px;">
+          
+          <!-- Client & Technician -->
+          <div style="background: #f9f9f9; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <p style="margin: 0 0 10px; color: #555;"><strong>👤 العميل:</strong> ${data.clientName}</p>
+            <p style="margin: 0 0 10px; color: #555;"><strong>🔧 الفني:</strong> ${data.technicianName}</p>
+            <p style="margin: 0; color: #555;"><strong>🛠️ الخدمة:</strong> ${data.serviceName}</p>
+          </div>
+
+          <!-- Completion Note -->
+          <div style="background: #f9f9f9; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+            <p style="margin: 0; color: #555;"><strong>📝 ملاحظات:</strong> ${data.completionNote}</p>
+          </div>
+
+          <!-- Payment Summary -->
+          <div style="border-radius: 12px; overflow: hidden; border: 1px solid #e0e0e0;">
+            <div style="background: #1b5e20; padding: 12px 20px;">
+              <p style="margin: 0; color: white; font-weight: bold;">💰 ملخص الدفع</p>
+            </div>
+            <table style="width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555;">العربون المدفوع</td>
+                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555; text-align: left;">${data.depositAmount} جنيه</td>
+              </tr>
+              <tr>
+                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555;">المبلغ المتبقي المدفوع</td>
+                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555; text-align: left;">${data.remainingAmount} جنيه</td>
+              </tr>
+              <tr style="background: #e8f5e9;">
+                <td style="padding: 12px 20px; font-weight: bold; color: #1b5e20;">الإجمالي</td>
+                <td style="padding: 12px 20px; font-weight: bold; color: #1b5e20; text-align: left;">${data.totalPrice} جنيه</td>
+              </tr>
+            </table>
+          </div>
+
+          <!-- Paid Badge -->
+          <div style="text-align: center; margin-top: 25px;">
+            <span style="background: #e8f5e9; color: #1b5e20; padding: 10px 30px; border-radius: 20px; font-weight: bold; font-size: 16px;">✅ تم الدفع بالكامل</span>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div style="background: #fafafa; padding: 20px; text-align: center; border-top: 1px solid #eee;">
+          <p style="color: #888; font-size: 13px; margin: 0">منصة أوسطا © 2026</p>
+        </div>
+
+      </div>
+    </div>
+  </body>
+</html>
+    `,
+    });
+  }
 }

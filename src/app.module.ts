@@ -15,6 +15,7 @@ import { EmergencyModule } from './emergency/emergency.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { PaymentModule } from './payment/payment.module';
 import { ScheduleModule } from '@nestjs/schedule';
+import { InvoiceModule } from './invoice/invoice.module';
 
 
 @Module({
@@ -39,6 +40,7 @@ import { ScheduleModule } from '@nestjs/schedule';
     EmergencyModule,
     ReviewsModule,
     PaymentModule,
+    InvoiceModule,
   ],
   controllers: [AppController],
   providers: [AppService],

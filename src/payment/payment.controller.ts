@@ -1,46 +1,25 @@
-import {
-  Controller,
-  Post,
-  Param,
-  UseGuards,
-  Req,
-  Query,
-} from '@nestjs/common';
+import { Controller, Post, Param, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { PaymentService } from './payment.service';
-import { PaymentMethod } from './enums/payment-method.enum';
 
 @Controller('payment')
 export class PaymentController {
   constructor(private readonly paymentService: PaymentService) {}
 
-  @Post('deposit/:requestId/card')
-  @UseGuards(AuthGuard('jwt'))
-  payDepositCard(@Param('requestId') requestId: string, @Req() req) {
-    return this.paymentService.payDeposit(
-      requestId,
-      req.user.userId,
-      PaymentMethod.CARD,
-    );
-  }
+  @Post('deposit/:requestId')
+@UseGuards(AuthGuard('jwt'))
+payDeposit(@Param('requestId') requestId: string, @Req() req) {
+  return this.paymentService.payDeposit(requestId, req.user.userId);
+}
 
-  @Post('deposit/:requestId/wallet')
-  @UseGuards(AuthGuard('jwt'))
-  payDepositWallet(@Param('requestId') requestId: string, @Req() req) {
-    return this.paymentService.payDeposit(
-      requestId,
-      req.user.userId,
-      PaymentMethod.WALLET,
-    );
-  }
+
   @Post('remaining/:requestId')
   @UseGuards(AuthGuard('jwt'))
   payRemaining(
     @Param('requestId') requestId: string,
-    @Query('method') method: PaymentMethod = PaymentMethod.CARD,
     @Req() req,
   ) {
-    return this.paymentService.payRemaining(requestId, req.user.userId, method);
+    return this.paymentService.payRemaining(requestId, req.user.userId);
   }
 
   @Post('webhook')

@@ -12,15 +12,15 @@ import { RequestPaginationDto } from './dto/request-pagination.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { RequestStatus } from './enums/request-status.enum';
 import { UserRole } from 'src/users/schemas/user.schema';
+import { InvoiceService } from 'src/invoice/invoice.service';
 
 @Injectable()
 export class RequestService {
   constructor(
     @InjectModel(MainRequest.name)
     private readonly requestModel: Model<RequestDocument>,
+    private readonly invoiceService: InvoiceService,
   ) {}
-
-  // ─── Create (USER) ────────────────────────────────────────────────────────
 
   async create(
     userId: string,
@@ -36,17 +36,13 @@ export class RequestService {
     });
   }
 
-  // ─── Get All Pending (TECHNICIAN sees all pending to pick from) ───────────
-
   async findAllPending(dto: RequestPaginationDto) {
     const { page = 1, limit = 10 } = dto;
-
     const filter = { status: RequestStatus.PENDING };
-
     const [data, total] = await Promise.all([
       this.requestModel
         .find(filter)
-        .populate('userId', 'name phone')
+        .populate('userId', 'fullName phone')
         .populate('categoryId', 'name')
         .populate('serviceId', 'name')
         .sort({ createdAt: -1 })
@@ -55,35 +51,28 @@ export class RequestService {
         .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
-
-  // ─── Get All (ADMIN) ──────────────────────────────────────────────────────
 
   async findAll(dto: RequestPaginationDto) {
     const { page = 1, limit = 10, status } = dto;
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
-
     const [data, total] = await Promise.all([
       this.requestModel
         .find(filter)
-        .populate('userId', 'name email')
+        .populate('userId', 'fullName email')
         .populate('categoryId', 'name')
         .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'name phone')
+        .populate('assignedTechnician', 'fullName phone')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
-
-  // ─── Get My Requests (USER) ───────────────────────────────────────────────
 
   async findMyRequests(userId: string, dto: RequestPaginationDto) {
     const { page = 1, limit = 10, status } = dto;
@@ -91,24 +80,20 @@ export class RequestService {
       userId: new Types.ObjectId(userId),
     };
     if (status) filter.status = status;
-
     const [data, total] = await Promise.all([
       this.requestModel
         .find(filter)
         .populate('categoryId', 'name')
         .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'name phone')
+        .populate('assignedTechnician', 'fullName phone')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
-
-  // ─── Get My Assigned Requests (TECHNICIAN) ────────────────────────────────
 
   async findAssignedRequests(technicianId: string, dto: RequestPaginationDto) {
     const { page = 1, limit = 10, status } = dto;
@@ -116,11 +101,10 @@ export class RequestService {
       assignedTechnician: new Types.ObjectId(technicianId),
     };
     if (status) filter.status = status;
-
     const [data, total] = await Promise.all([
       this.requestModel
         .find(filter)
-        .populate('userId', 'name phone')
+        .populate('userId', 'fullName phone')
         .populate('categoryId', 'name')
         .populate('serviceId', 'name')
         .sort({ createdAt: -1 })
@@ -129,59 +113,92 @@ export class RequestService {
         .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
-
-  // ─── Get By Id ────────────────────────────────────────────────────────────
 
   async findById(requestId: string): Promise<RequestDocument> {
     if (!Types.ObjectId.isValid(requestId))
       throw new NotFoundException('Request not found');
-
     const request = await this.requestModel
       .findById(requestId)
-      .populate('userId', 'name email phone')
+      .populate('userId', 'fullName email ')
       .populate('categoryId', 'name')
       .populate('serviceId', 'name')
-      .populate('assignedTechnician', 'name phone')
+      .populate('assignedTechnician', 'fullName')
       .exec();
-
     if (!request)
       throw new NotFoundException(`Request #${requestId} not found`);
     return request;
   }
 
-  // ─── Accept Request (TECHNICIAN) ──────────────────────────────────────────
-  // technician accepts a pending request → assigns themselves → IN_PROGRESS
-
-  async acceptRequest(
-    requestId: string,
-    technicianId: string,
-  ): Promise<RequestDocument> {
-    const request = await this.findById(requestId);
-
-    if (request.status !== RequestStatus.PENDING)
-      throw new BadRequestException('Only pending requests can be accepted');
-
-    request.assignedTechnician = new Types.ObjectId(technicianId) as any;
-    request.status = RequestStatus.ACCEPTED;
-    return request.save();
-  }
-  // helper to get assignedTechnician id as string
   private getAssignedId(request: RequestDocument): string | null {
     const assigned = request.assignedTechnician as any;
     if (!assigned) return null;
     return assigned._id?.toString() ?? assigned.toString();
   }
-  // ─── Complete Request (TECHNICIAN) ────────────────────────────────────────
 
-  async completeRequest(
+  async acceptRequest(requestId: string, technicianId: string) {
+    const request = await this.findById(requestId);
+    if (request.status !== RequestStatus.PENDING)
+      throw new BadRequestException('Only pending requests can be accepted');
+
+    request.assignedTechnician = new Types.ObjectId(technicianId) as any;
+    request.status = RequestStatus.ACCEPTED;
+    await request.save();
+
+    return {
+      message:
+        'Request accepted successfully. Please pay the deposit to proceed.',
+      depositAmount: request.depositAmount,
+      request,
+    };
+  }
+
+  async onTheWay(
     requestId: string,
     technicianId: string,
   ): Promise<RequestDocument> {
     const request = await this.findById(requestId);
+    const assignedId = this.getAssignedId(request);
 
+    if (assignedId !== technicianId)
+      throw new ForbiddenException(
+        'You can only update your assigned requests',
+      );
+
+    if (request.status !== RequestStatus.IN_PROGRESS)
+      throw new BadRequestException('Request must be in progress first');
+
+    request.status = RequestStatus.ON_THE_WAY;
+    return request.save();
+  }
+
+  async startRequest(
+    requestId: string,
+    technicianId: string,
+  ): Promise<RequestDocument> {
+    const request = await this.findById(requestId);
+    const assignedId = this.getAssignedId(request);
+
+    if (assignedId !== technicianId)
+      throw new ForbiddenException(
+        'You can only update your assigned requests',
+      );
+
+    if (request.status !== RequestStatus.ON_THE_WAY)
+      throw new BadRequestException('Technician must be on the way first');
+
+    request.status = RequestStatus.STARTED;
+    return request.save();
+  }
+
+  async completeRequest(
+    requestId: string,
+    technicianId: string,
+    totalPrice: number,
+    completionNote: string,
+  ): Promise<RequestDocument> {
+    const request = await this.findById(requestId);
     const assignedId = this.getAssignedId(request);
 
     if (!assignedId)
@@ -192,18 +209,16 @@ export class RequestService {
         'You can only complete your assigned requests',
       );
 
-    if (request.status !== RequestStatus.IN_PROGRESS)
-      throw new BadRequestException(
-        'Only in_progress requests can be completed',
-      );
+    if (request.status !== RequestStatus.STARTED)
+      throw new BadRequestException('Only started requests can be completed');
 
     request.status = RequestStatus.COMPLETED;
-    return request.save();
+    request.totalPrice = totalPrice;
+    request.completionNote = completionNote;
+    await request.save();
+    return request;
   }
-  // ─── Cancel ───────────────────────────────────────────────────────────────
-  // USER      → only if PENDING
-  // TECHNICIAN → only their assigned, except COMPLETED
-  // ADMIN     → anything except COMPLETED
+
   async cancel(
     requestId: string,
     userId: string,
@@ -212,8 +227,12 @@ export class RequestService {
   ): Promise<RequestDocument> {
     const request = await this.findById(requestId);
 
-    if (request.status === RequestStatus.COMPLETED)
-      throw new BadRequestException('Cannot cancel a completed request');
+    if (
+      request.status === RequestStatus.ON_THE_WAY ||
+      request.status === RequestStatus.STARTED ||
+      request.status === RequestStatus.COMPLETED
+    )
+      throw new BadRequestException('Cannot cancel request at this stage');
 
     if (userRole === UserRole.CLIENT) {
       const requestUserId =
@@ -221,19 +240,12 @@ export class RequestService {
 
       if (requestUserId !== userId)
         throw new ForbiddenException('You can only cancel your own requests');
-
-      if (request.status !== RequestStatus.PENDING)
-        throw new ForbiddenException(
-          'Clients can only cancel pending requests',
-        );
     }
 
     if (userRole === UserRole.TECHNICIAN) {
       const assignedId = this.getAssignedId(request);
-
       if (!assignedId)
         throw new BadRequestException('No technician assigned to this request');
-
       if (assignedId !== userId)
         throw new ForbiddenException(
           'You can only cancel your assigned requests',
@@ -247,21 +259,17 @@ export class RequestService {
       reason: reason ?? undefined,
       cancelledAt: new Date(),
     };
-
     return request.save();
   }
-  // ─── Delete (ADMIN) ───────────────────────────────────────────────────────
 
   async delete(requestId: string): Promise<{ message: string }> {
     if (!Types.ObjectId.isValid(requestId))
       throw new NotFoundException('Request not found');
-
     const deleted = await this.requestModel.findByIdAndDelete(requestId);
     if (!deleted)
       throw new NotFoundException(`Request #${requestId} not found`);
     return { message: 'Request deleted successfully' };
   }
-  // ─── Update Status (ADMIN override) ──────────────────────────────────────
 
   async updateStatus(
     requestId: string,
@@ -271,31 +279,27 @@ export class RequestService {
     request.status = dto.status;
     return request.save();
   }
-  // ─── Get Requests By User Id (ADMIN) ─────────────────────────────────────
 
   async findByUserId(userId: string, dto: RequestPaginationDto) {
     if (!Types.ObjectId.isValid(userId))
       throw new NotFoundException('User not found');
-
     const { page = 1, limit = 10, status } = dto;
     const filter: Record<string, unknown> = {
       userId: new Types.ObjectId(userId),
     };
     if (status) filter.status = status;
-
     const [data, total] = await Promise.all([
       this.requestModel
         .find(filter)
         .populate('categoryId', 'name')
         .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'name phone')
+        .populate('assignedTechnician', 'fullName')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
         .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
   }
 }
