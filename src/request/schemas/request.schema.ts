@@ -6,12 +6,6 @@ export type RequestDocument = MainRequest & Document;
 
 @Schema({ timestamps: true })
 export class MainRequest {
-  @Prop({ required: true, trim: true })
-  title: string;
-
-  @Prop({ required: true, trim: true })
-  description: string;
-
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
   userId: Types.ObjectId;
 
@@ -56,6 +50,30 @@ export class MainRequest {
 
   @Prop({ default: false })
   isFullyPaid: boolean;
+
+  @Prop({
+    type: {
+      fullAddress: { type: String, required: true, trim: true },
+      district: { type: String, required: true, trim: true },
+      coordinates: {
+        lat: { type: Number },
+        lng: { type: Number },
+      },
+    },
+    required: true,
+    _id: false,
+  })
+  address: {
+    fullAddress: string;
+    district: string;
+    coordinates?: { lat: number; lng: number };
+  };
+
+  @Prop({ type: String, trim: true, default: null })
+  notes: string | null;
+
+  @Prop({ type: String, trim: true, default: null })
+  completionNote: string | null;
 
   // createdAt & updatedAt auto-added by { timestamps: true }
   createdAt: Date;

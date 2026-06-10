@@ -1,107 +1,63 @@
 import { Injectable } from '@nestjs/common';
 import axios from 'axios';
-import { PaymentMethod } from './enums/payment-method.enum';
 
 @Injectable()
 export class PaymobService {
-  private readonly apiKey = process.env.PAYMOB_API_KEY;
-  private readonly integrationId = process.env.PAYMOB_INTEGRATION_ID_CARD;
-  private readonly iframeId = process.env.PAYMOB_IFRAME_ID;
-  private readonly walletIntegrationId =
-    process.env.PAYMOB_INTEGRATION_ID_WALLET;
+  private readonly secretKey = process.env.PAYMOB_SECRET_KEY;
+  private readonly publicKey = process.env.PAYMOB_PUBLIC_KEY;
+  private readonly hmacSecret = process.env.PAYMOB_HMAC_SECRET;
+  private readonly cardIntegrationId = process.env.PAYMOB_INTEGRATION_ID_CARD;
+  private readonly walletIntegrationId = process.env.PAYMOB_INTEGRATION_ID_WALLET;
+  private readonly instapayIntegrationId = process.env.PAYMOB_INTEGRATION_ID_INSTAPAY;
 
-  // Step 1: Auth
-  private async getAuthToken(): Promise<string> {
-    const res = await axios.post('https://accept.paymob.com/api/auth/tokens', {
-      api_key: this.apiKey,
-    });
-    return res.data.token;
-  }
-
-  // Step 2: Create Order
-  private async createOrder(token: string, amount: number): Promise<string> {
-    const res = await axios.post(
-      'https://accept.paymob.com/api/ecommerce/orders',
-      {
-        auth_token: token,
-        delivery_needed: false,
-        amount_cents: amount * 100,
-        currency: 'EGP',
-        items: [],
-      },
-    );
-    return res.data.id;
-  }
-
-  // Step 3: Payment Key
-  private async getPaymentKey(
-    token: string,
-    orderId: string,
+  // ─── Create Intention (unified) ───────────────────────────────────────────
+  private async createIntention(
     amount: number,
     user: { email: string; fullName: string; phone: string },
-    integrationId: string,
-  ): Promise<string> {
+    integrationIds: number[],
+  ): Promise<{ paymentUrl: string; orderId: string }> {
     const res = await axios.post(
-      'https://accept.paymob.com/api/acceptance/payment_keys',
+      'https://accept.paymob.com/v1/intention/',
       {
-        auth_token: token,
-        amount_cents: amount * 100,
-        expiration: 3600,
-        order_id: orderId,
+        amount: amount * 100,
+        currency: 'EGP',
+        payment_methods: integrationIds,
+        items: [],
         billing_data: {
-          email: user.email,
           first_name: user.fullName.split(' ')[0],
           last_name: user.fullName.split(' ')[1] ?? 'N/A',
+          email: user.email,
           phone_number: user.phone ?? 'N/A',
-          apartment: 'N/A',
-          floor: 'N/A',
-          street: 'N/A',
-          building: 'N/A',
-          shipping_method: 'N/A',
-          postal_code: 'N/A',
-          city: 'N/A',
-          country: 'EG',
-          state: 'N/A',
         },
-        currency: 'EGP',
-        integration_id: integrationId,
+      },
+      {
+        headers: {
+          Authorization: `Token ${this.secretKey}`,
+          'Content-Type': 'application/json',
+        },
       },
     );
-    return res.data.token;
-  }
-
-  // Main: Get Payment URL
-  async getPaymentUrl(
-    amount: number,
-    user: { email: string; fullName: string; phone: string },
-    method: PaymentMethod = PaymentMethod.CARD,
-  ): Promise<{ paymentUrl: string; orderId: string }> {
-    const token = await this.getAuthToken();
-    const orderId = await this.createOrder(token, amount);
-
-    const integrationId =
-      method === PaymentMethod.WALLET
-        ? this.walletIntegrationId
-        : this.integrationId;
-
-    const paymentKey = await this.getPaymentKey(
-      token,
-      orderId,
-      amount,
-      user,
-      integrationId!,
-    );
-
     return {
-      paymentUrl: `https://accept.paymob.com/api/acceptance/iframes/${this.iframeId}?payment_token=${paymentKey}`,
-      orderId: orderId.toString(),
+      paymentUrl: `https://accept.paymob.com/unifiedcheckout/?publicKey=${this.publicKey}&clientSecret=${res.data.client_secret}`,
+      orderId: res.data.intention_order_id.toString(),
     };
   }
 
-  // Verify HMAC
+  // ─── Card Payment ─────────────────────────────────────────────────────────
+  async getPaymentUrl(
+  amount: number,
+  user: { email: string; fullName: string; phone: string },
+): Promise<{ paymentUrl: string; orderId: string }> {
+  return this.createIntention(amount, user, [
+    parseInt(this.cardIntegrationId!),
+    parseInt(this.walletIntegrationId!),
+    parseInt(this.instapayIntegrationId!),
+  ]);
+}
+
+  // ─── Verify HMAC ──────────────────────────────────────────────────────────
   verifyHmac(data: any, hmac: string): boolean {
     const crypto = require('crypto');
-    const secret = process.env.PAYMOB_HMAC_SECRET!;
     const obj = data.obj ?? data;
 
     const values = [
@@ -128,43 +84,11 @@ export class PaymobService {
     ];
 
     const string = values.join('');
-
     const hash = crypto
-      .createHmac('sha512', secret)
+      .createHmac('sha512', this.hmacSecret!)
       .update(string)
       .digest('hex');
 
     return hash === hmac;
   }
-
-  async getWalletPaymentUrl(
-  amount: number,
-  user: { email: string; fullName: string; phone: string },
-): Promise<{ paymentUrl: string; orderId: string }> {
-  const token = await this.getAuthToken();
-  const orderId = await this.createOrder(token, amount);
-  const paymentKey = await this.getPaymentKey(
-    token,
-    orderId,
-    amount,
-    user,
-    this.walletIntegrationId!,
-  );
-
-  const res = await axios.post(
-    'https://accept.paymob.com/api/acceptance/payments/pay',
-    {
-      source: {
-        identifier: user.phone, 
-        subtype: 'WALLET',
-      },
-      payment_token: paymentKey,
-    },
-  );
-
-  return {
-     paymentUrl: res.data.redirection_url,
-    orderId: orderId.toString(),
-  };
-}
 }

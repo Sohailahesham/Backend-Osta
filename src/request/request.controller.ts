@@ -22,6 +22,7 @@ import { RoleDecorator as Roles } from '../common/decorators/role.decorator';
 import { UserRole } from 'src/users/schemas/user.schema';
 import { CancelRequestDto } from './dto/cancel-request.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { CompleteRequestDto } from './dto/complete-request.dto';
 
 @ApiTags('Requests')
 @ApiBearerAuth('JWT')
@@ -103,13 +104,39 @@ export class RequestController {
     return this.requestService.acceptRequest(id, (req as any).user.userId);
   }
 
+  // PATCH /requests/:id/on-the-way — TECHNICIAN ← جديد
+  @ApiOperation({ summary: '[Technician] Mark as on the way' })
+  @Patch(':id/on-the-way')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TECHNICIAN)
+  async onTheWay(@Param('id') id: string, @Req() req: Request) {
+    return this.requestService.onTheWay(id, (req as any).user.userId);
+  }
+
+  // PATCH /requests/:id/start — TECHNICIAN ← جديد
+  @ApiOperation({ summary: '[Technician] Mark as started' })
+  @Patch(':id/start')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TECHNICIAN)
+  async startRequest(@Param('id') id: string, @Req() req: Request) {
+    return this.requestService.startRequest(id, (req as any).user.userId);
+  }
+
   // PATCH /requests/:id/complete — TECHNICIAN completes their request
   @ApiOperation({ summary: '[Technician] Mark request as complete' })
   @Patch(':id/complete')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.TECHNICIAN)
-  async completeRequest(@Param('id') id: string, @Req() req: Request) {
-    return this.requestService.completeRequest(id, (req as any).user.userId);
+  @UseGuards(AuthGuard('jwt'))
+  completeRequest(
+    @Param('id') id: string,
+    @Body() dto: CompleteRequestDto,
+    @Req() req,
+  ) {
+    return this.requestService.completeRequest(
+      id,
+      req.user.userId,
+      dto.totalPrice,
+      dto.completionNote,
+    );
   }
 
   // PATCH /requests/:id/status — ADMIN only (override any status)
