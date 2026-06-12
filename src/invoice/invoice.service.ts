@@ -13,6 +13,7 @@ import {
 } from '../request/schemas/request.schema';
 import { MailService } from '../mail/mail.service';
 import { UserRole } from 'src/users/schemas/user.schema';
+import { WalletService } from 'src/wallet/wallet.service';
 
 @Injectable()
 export class InvoiceService {
@@ -20,6 +21,7 @@ export class InvoiceService {
     @InjectModel(Invoice.name) private invoiceModel: Model<InvoiceDocument>,
     @InjectModel(MainRequest.name) private requestModel: Model<RequestDocument>,
     private mailService: MailService,
+    private walletService: WalletService,
   ) {}
 
   async createFromRequest(requestId: string): Promise<InvoiceDocument> {
@@ -93,6 +95,12 @@ export class InvoiceService {
         remainingAmount: invoice.remainingAmount,
         createdAt: invoice.createdAt,
       });
+      const technician = request.assignedTechnician as any;
+      await this.walletService.creditTechnician(
+        technician?._id?.toString() ?? technician?.toString(),
+        request.totalPrice,
+        requestId,
+      );
     }
   }
 

@@ -7,12 +7,14 @@ export enum PaymentStatus {
   PENDING = 'pending',
   PAID = 'paid',
   UNPAID = 'unpaid',
-  FAILED = 'failed'
+  FAILED = 'failed',
+  REFUNDED = 'refunded'
 }
 
 export enum PaymentType {
   DEPOSIT = 'deposit',
   REMAINING = 'remaining',
+  REFUND='refund'
 }
 
 @Schema({ timestamps: true })

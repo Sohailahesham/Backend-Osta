@@ -9,6 +9,7 @@ import { User, UserSchema } from '../users/schemas/user.schema';
 import { PaymentScheduler } from './payment.scheduler';
 import { Invoice, InvoiceSchema } from 'src/invoice/schemas/invoice.schema';
 import { InvoiceModule } from '../invoice/invoice.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { InvoiceModule } from '../invoice/invoice.module';
       { name: Invoice.name, schema: InvoiceSchema },
     ]),
     InvoiceModule,
+    MailModule,
   ],
   controllers: [PaymentController],
   providers: [PaymentService, PaymobService, PaymentScheduler],
