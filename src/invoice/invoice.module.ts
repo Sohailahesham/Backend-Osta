@@ -5,6 +5,7 @@ import { InvoiceController } from './invoice.controller';
 import { Invoice, InvoiceSchema } from './schemas/invoice.schema';
 import { MainRequest, RequestSchema } from '../request/schemas/request.schema';
 import { MailModule } from '../mail/mail.module';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -13,9 +14,10 @@ import { MailModule } from '../mail/mail.module';
       { name: MainRequest.name, schema: RequestSchema },
     ]),
     MailModule,
+    WalletModule
   ],
   controllers: [InvoiceController],
-  providers: [InvoiceService],
+  providers: [InvoiceService ],
   exports: [InvoiceService],
 })
 export class InvoiceModule {}

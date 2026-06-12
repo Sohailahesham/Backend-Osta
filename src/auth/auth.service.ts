@@ -27,6 +27,7 @@ import {
   Technician,
   TechnicianDocument,
 } from '../technician/schemas/technician.schema';
+import { WalletService } from 'src/wallet/wallet.service';
 
 @Injectable()
 export class AuthService {
@@ -36,6 +37,7 @@ export class AuthService {
     private technicianModel: Model<TechnicianDocument>,
     private jwtService: JwtService,
     private mailService: MailService,
+    private walletService: WalletService,
   ) {}
 
   private async signTokens(user: UserDocument) {
@@ -128,7 +130,7 @@ export class AuthService {
       } as any);
 
       await this.technicianModel.create({ userId: user._id } as any);
-
+      await this.walletService.createWallet(user._id.toString());
       return this.signTokens(user);
     } catch (error: any) {
       if (error.code === 11000) {

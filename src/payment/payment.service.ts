@@ -23,6 +23,7 @@ import {
 } from 'src/request/enums/request-status.enum';
 import { Invoice, InvoiceDocument } from 'src/invoice/schemas/invoice.schema';
 import { InvoiceService } from 'src/invoice/invoice.service';
+import { MailService } from 'src/mail/mail.service';
 
 @Injectable()
 export class PaymentService {
@@ -33,6 +34,7 @@ export class PaymentService {
     @InjectModel(Invoice.name) private invoiceModel: Model<InvoiceDocument>,
     private paymobService: PaymobService,
     private invoiceService: InvoiceService,
+    private mailService: MailService,
   ) {}
 
 
@@ -197,4 +199,49 @@ export class PaymentService {
       },
     };
   }
+
+
+  async getDepositPayment(requestId: string) {
+  return this.paymentModel.findOne({
+    requestId: new Types.ObjectId(requestId),
+    type: PaymentType.DEPOSIT,
+    status: PaymentStatus.PAID,
+  });
+}
+
+async refundDeposit(payment: PaymentDocument) {
+  await this.paymobService.refundPayment(
+    payment.paymobTransactionId!,
+    payment.amount,
+  );
+
+  await this.paymentModel.findByIdAndUpdate(payment._id, {
+    status: PaymentStatus.REFUNDED,
+  });
+
+  await this.paymentModel.create({
+    requestId: payment.requestId,
+    userId: payment.userId,
+    amount: payment.amount,
+    type: PaymentType.REFUND,
+    status: PaymentStatus.PAID,
+    paymobTransactionId: payment.paymobTransactionId,
+    paidAt: new Date(),
+  });
+
+  await this.requestModel.findByIdAndUpdate(payment.requestId, {
+    depositStatus: DepositStatus.UNPAID,
+  });
+
+
+  const user = await this.userModel.findById(payment.userId);
+  if (user) {
+    await this.mailService.sendRefundEmail(user.email, {
+      clientName: user.fullName,
+      amount: payment.amount,
+    });
+  }
+}
+
+
 }

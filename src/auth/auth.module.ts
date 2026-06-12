@@ -13,6 +13,7 @@ import {
 } from '../technician/schemas/technician.schema';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './strategies/google.strategy';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
       { name: Technician.name, schema: TechnicianSchema },
     ]),
     PassportModule,
+    WalletModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
