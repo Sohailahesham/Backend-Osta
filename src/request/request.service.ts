@@ -13,6 +13,8 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { RequestStatus } from './enums/request-status.enum';
 import { UserRole } from 'src/users/schemas/user.schema';
 import { InvoiceService } from 'src/invoice/invoice.service';
+import { PaymentService } from 'src/payment/payment.service';
+import { PaymentStatus } from 'src/payment/schemas/payment.schema';
 import { ChatGateway } from 'src/chat/chat.gateway';
 
 @Injectable()
@@ -21,6 +23,7 @@ export class RequestService {
     @InjectModel(MainRequest.name)
     private readonly requestModel: Model<RequestDocument>,
     private readonly invoiceService: InvoiceService,
+    private readonly paymentService: PaymentService,
     private readonly chatGateway: ChatGateway,
   ) {}
 
@@ -177,7 +180,7 @@ export class RequestService {
       );
 
     if (request.status !== RequestStatus.IN_PROGRESS)
-      throw new BadRequestException('Request must be in progress first');
+      throw new BadRequestException('Request must be in progress first so you must pay deposit first!');
 
     request.status = RequestStatus.ON_THE_WAY;
     return request.save();
@@ -231,38 +234,42 @@ export class RequestService {
   }
 
   async cancel(
-    requestId: string,
-    userId: string,
-    userRole: UserRole,
-    reason?: string,
-  ): Promise<RequestDocument> {
-    const request = await this.findById(requestId);
+  requestId: string,
+  userId: string,
+  userRole: UserRole,
+  reason?: string,
+): Promise<RequestDocument> {
+  const request = await this.findById(requestId);
 
-    if (
-      request.status === RequestStatus.ON_THE_WAY ||
-      request.status === RequestStatus.STARTED ||
-      request.status === RequestStatus.COMPLETED
-    )
-      throw new BadRequestException('Cannot cancel request at this stage');
+  if (
+    request.status === RequestStatus.ON_THE_WAY ||
+    request.status === RequestStatus.STARTED ||
+    request.status === RequestStatus.COMPLETED
+  )
+    throw new BadRequestException('Cannot cancel request at this stage');
 
-    if (userRole === UserRole.CLIENT) {
-      const requestUserId =
-        (request.userId as any)?._id?.toString() ?? request.userId?.toString();
+  if (userRole === UserRole.CLIENT) {
+    const requestUserId =
+      (request.userId as any)?._id?.toString() ?? request.userId?.toString();
 
-      if (requestUserId !== userId)
-        throw new ForbiddenException('You can only cancel your own requests');
+    if (requestUserId !== userId)
+      throw new ForbiddenException('You can only cancel your own requests');
+  }
+
+  if (userRole === UserRole.TECHNICIAN) {
+    const assignedId = this.getAssignedId(request);
+    if (!assignedId)
+      throw new BadRequestException('No technician assigned to this request');
+    if (assignedId !== userId)
+      throw new ForbiddenException('You can only cancel your assigned requests');
+  }
+
+  // ← الـ refund بيتعمل لأي حد يكنسل
+  const payment = await this.paymentService.getDepositPayment(requestId);
+  if (payment && payment.status === PaymentStatus.PAID) {
+    await this.paymentService.refundDeposit(payment);
     }
-
-    if (userRole === UserRole.TECHNICIAN) {
-      const assignedId = this.getAssignedId(request);
-      if (!assignedId)
-        throw new BadRequestException('No technician assigned to this request');
-      if (assignedId !== userId)
-        throw new ForbiddenException(
-          'You can only cancel your assigned requests',
-        );
-    }
-
+    
     request.status = RequestStatus.CANCELLED;
     request.cancellation = {
       cancelledBy: new Types.ObjectId(userId) as any,

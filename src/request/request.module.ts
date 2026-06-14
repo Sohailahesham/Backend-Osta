@@ -6,6 +6,7 @@ import { RequestService } from './request.service';
 import { RequestController } from './request.controller';
 import { AuthModule } from '../auth/auth.module';
 import { InvoiceModule } from '../invoice/invoice.module';
+import { PaymentModule } from '../payment/payment.module';
 import { ChatModule } from 'src/chat/chat.module';
 
 @Module({
@@ -14,6 +15,7 @@ import { ChatModule } from 'src/chat/chat.module';
       { name: MainRequest.name, schema: RequestSchema },
     ]),
     AuthModule, // provides JwtStrategy + PassportModule → enables AuthGuard('jwt')
+    PaymentModule,
     InvoiceModule,
     ChatModule,
   ],
