@@ -16,6 +16,7 @@ import { ReviewsModule } from './reviews/reviews.module';
 import { PaymentModule } from './payment/payment.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { InvoiceModule } from './invoice/invoice.module';
+import { ChatModule } from './chat/chat.module';
 
 
 @Module({
@@ -41,6 +42,7 @@ import { InvoiceModule } from './invoice/invoice.module';
     ReviewsModule,
     PaymentModule,
     InvoiceModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [AppService],

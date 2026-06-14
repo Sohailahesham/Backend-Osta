@@ -13,6 +13,7 @@ import { UpdateStatusDto } from './dto/update-status.dto';
 import { RequestStatus } from './enums/request-status.enum';
 import { UserRole } from 'src/users/schemas/user.schema';
 import { InvoiceService } from 'src/invoice/invoice.service';
+import { ChatGateway } from 'src/chat/chat.gateway';
 
 @Injectable()
 export class RequestService {
@@ -20,6 +21,7 @@ export class RequestService {
     @InjectModel(MainRequest.name)
     private readonly requestModel: Model<RequestDocument>,
     private readonly invoiceService: InvoiceService,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   async create(
@@ -41,17 +43,25 @@ export class RequestService {
     const filter = { status: RequestStatus.PENDING };
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName phone')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName phone')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findAll(dto: RequestPaginationDto) {
@@ -60,15 +70,15 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName email')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName email')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
@@ -82,14 +92,14 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
@@ -103,14 +113,14 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName phone')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName phone')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
@@ -120,12 +130,12 @@ export class RequestService {
     if (!Types.ObjectId.isValid(requestId))
       throw new NotFoundException('Request not found');
     const request = await this.requestModel
-      .findById(requestId)
-      .populate('userId', 'fullName email ')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name')
-      .populate('assignedTechnician', 'fullName')
-      .exec();
+    .findById(requestId)
+    .populate('userId', 'fullName email ')
+    .populate('categoryId', 'name')
+    .populate('serviceId', 'name')
+    .populate('assignedTechnician', 'fullName')
+    .exec();
     if (!request)
       throw new NotFoundException(`Request #${requestId} not found`);
     return request;
@@ -215,8 +225,9 @@ export class RequestService {
     request.status = RequestStatus.COMPLETED;
     request.totalPrice = totalPrice;
     request.completionNote = completionNote;
-    await request.save();
-    return request;
+    const savedRequest = await request.save();
+    this.chatGateway.closeRoom(requestId);
+    return savedRequest;
   }
 
   async cancel(
@@ -259,7 +270,9 @@ export class RequestService {
       reason: reason ?? undefined,
       cancelledAt: new Date(),
     };
-    return request.save();
+    const savedRequest = await request.save();
+    this.chatGateway.closeRoom(requestId);
+    return savedRequest;
   }
 
   async delete(requestId: string): Promise<{ message: string }> {
@@ -290,14 +303,14 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
