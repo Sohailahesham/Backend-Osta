@@ -17,6 +17,7 @@ import { PaymentModule } from './payment/payment.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { InvoiceModule } from './invoice/invoice.module';
 import { WalletModule } from './wallet/wallet.module';
+import { PostModule } from './post/post.module';
 import { ChatModule } from './chat/chat.module';
 
 
@@ -44,6 +45,7 @@ import { ChatModule } from './chat/chat.module';
     PaymentModule,
     InvoiceModule,
     WalletModule,
+    PostModule,
     ChatModule,
   ],
   controllers: [AppController],
