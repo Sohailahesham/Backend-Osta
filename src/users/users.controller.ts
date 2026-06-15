@@ -88,7 +88,7 @@ export class UsersController {
   @ApiOperation({
     summary: 'Get user dashboard data',
     description:
-      'Retrieve dashboard data for the authenticated user. This endpoint requires authentication and authorization to access.',
+      'Retrieve dashboard data for the authenticated user including stats, recent requests with category and service details, and the active in-progress request.',
   })
   @ApiResponse({
     status: 200,
@@ -96,42 +96,90 @@ export class UsersController {
     schema: {
       example: {
         success: true,
-        message: 'Dashboard data retrieved successfully',
+        message: 'User Dashboard retrieved successfully',
         data: {
-          totalRequests: 5,
+          stats: {
+            total: 5,
+            pending: 2,
+            inProgress: 1,
+            completed: 2,
+            cancelled: 0,
+          },
           recentRequests: [
             {
-              id: '60d5ec49c1234567890abc12',
+              _id: '60d5ec49c1234567890abc12',
               title: 'Request 1',
               status: 'pending',
               preferredDate: '2024-01-15',
               preferredTime: '10:00',
               createdAt: '2024-01-15T10:30:00.000Z',
+              address: {
+                fullAddress: '123 Main Street, Cairo, Egypt',
+                district: 'elgam3a',
+                coordinates: { lat: 30.0444, lng: 31.2357 },
+              },
+              categoryId: {
+                _id: '60d5ec49c1234567890abc20',
+                name: 'السباكة',
+                image: 'https://example.com/plumbing.jpg',
+              },
+              serviceId: {
+                _id: '60d5ec49c1234567890abc21',
+                name: 'إصلاح تسريب المياه',
+                priceRange: { min: 150, max: 450 },
+              },
             },
             {
-              id: '60d5ec49c1234567890abc13',
+              _id: '60d5ec49c1234567890abc13',
               title: 'Request 2',
               status: 'in-progress',
               preferredDate: '2024-01-16',
               preferredTime: '11:00',
               createdAt: '2024-01-16T11:00:00.000Z',
-            },
-            {
-              id: '60d5ec49c1234567890abc14',
-              title: 'Request 3',
-              status: 'completed',
-              preferredDate: '2024-01-17',
-              preferredTime: '12:00',
-              createdAt: '2024-01-17T12:00:00.000Z',
+              address: {
+                fullAddress: 'حي الأشجار، شارع عبدالعزيز، المنصورة',
+                district: 'حي الأشجار',
+                coordinates: { lat: 30.0444, lng: 31.2357 },
+              },
+              categoryId: {
+                _id: '60d5ec49c1234567890abc22',
+                name: 'الكهرباء',
+                image: 'https://example.com/electric.jpg',
+              },
+              serviceId: {
+                _id: '60d5ec49c1234567890abc23',
+                name: 'تركيب مروحة سقف',
+                priceRange: { min: 150, max: 300 },
+              },
             },
           ],
           activeRequest: {
-            id: '60d5ec49c1234567890abc15',
+            _id: '60d5ec49c1234567890abc15',
             title: 'Request 4',
             status: 'in-progress',
             preferredDate: '2024-01-18',
             preferredTime: '13:00',
             createdAt: '2024-01-18T13:00:00.000Z',
+            address: {
+              fullAddress: '123 Main Street, Cairo, Egypt',
+              district: 'elgam3a',
+              coordinates: { lat: 30.0444, lng: 31.2357 },
+            },
+            categoryId: {
+              _id: '60d5ec49c1234567890abc20',
+              name: 'السباكة',
+              image: 'https://example.com/plumbing.jpg',
+            },
+            serviceId: {
+              _id: '60d5ec49c1234567890abc21',
+              name: 'إصلاح تسريب المياه',
+              priceRange: { min: 150, max: 450 },
+            },
+            assignedTechnician: {
+              _id: '60d5ec49c1234567890abc30',
+              fullName: 'محمد الشاذلي',
+              phone: '01012345678',
+            },
           },
         },
       },

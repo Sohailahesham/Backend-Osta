@@ -67,18 +67,21 @@ export class UsersService {
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('categoryId', 'name image')
-      .populate('serviceId', 'title price')
-      .select('title status preferredDate preferredTime createdAt')
+      // .populate('serviceId', 'title price')
+      .populate('serviceId', 'name priceRange')
+      // .select('title status preferredDate preferredTime createdAt')
+      .select('title status preferredDate preferredTime createdAt address categoryId serviceId')
       .lean(),
 
       //* active request
       this.requestModel
       .findOne({ userId: userObjectId, status: RequestStatus.IN_PROGRESS })
       .populate('categoryId', 'name image')
-      .populate('serviceId', 'title price')
+      .populate('serviceId', 'name priceRange')
       .populate('assignedTechnician', 'fullName phone')
       .lean(),
     ]);
+
 
     //* calculate stats
     const counts = {
