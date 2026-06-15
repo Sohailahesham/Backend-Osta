@@ -10,22 +10,28 @@ export class TechnicianDataDto {
   _id: string;
 
   @Expose()
+  @Transform(({ obj }) => obj.userId?.fullName)
   fullName: string;
 
   @Expose()
+  @Transform(({ obj }) => obj.userId?.email)
   email: string;
 
   @Expose()
+  @Transform(({ obj }) => obj.userId?.phone)
   phone: string;
 
   @Expose()
+  @Transform(({ obj }) => obj.userId?.governorate)
   governorate: string;
 
   @Expose()
+  @Transform(({ obj }) => obj.userId?.city)
   city: string;
 
   @Expose()
-  specialization: TechnicianSpecialization;
+  @Transform(({ obj }) => obj.specialization?.categoryId?.name)
+  category: string;
 
   @Expose()
   yearsOfExperience: number;
