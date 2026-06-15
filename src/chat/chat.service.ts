@@ -5,11 +5,20 @@ import {
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model, Types } from 'mongoose';
-import { Message, MessageDocument, SenderRole } from './schemas/message.schema';
+import {
+  Message,
+  MessageDocument,
+  RoomType,
+  SenderRole,
+} from './schemas/message.schema';
 import {
   MainRequest,
   RequestDocument,
 } from 'src/request/schemas/request.schema';
+import {
+  Technician,
+  TechnicianDocument,
+} from 'src/technician/schemas/technician.schema';
 import { RequestStatus } from 'src/request/enums/request-status.enum';
 import { UserRole } from 'src/users/schemas/user.schema';
 
@@ -21,19 +30,21 @@ export class ChatService {
 
     @InjectModel(MainRequest.name)
     private requestModel: Model<RequestDocument>,
+
+    @InjectModel(Technician.name)
+    private technicianModel: Model<TechnicianDocument>,
   ) {}
 
-  //* validate room access
-  async validateRoomAccess(
+  // ── Request Chat ─────────────────────────────────────────────────────────
+
+  async validateRequestAccess(
     requestId: string,
     userId: string,
     role: UserRole,
   ): Promise<MainRequest> {
     const request = await this.requestModel.findById(requestId).lean();
-
     if (!request) throw new NotFoundException('Request not found');
 
-    //* check if request is in allowed statuses
     const allowedStatuses = [
       RequestStatus.ACCEPTED,
       RequestStatus.IN_PROGRESS,
@@ -41,13 +52,13 @@ export class ChatService {
       RequestStatus.STARTED,
     ];
     if (!allowedStatuses.includes(request.status)) {
-      throw new ForbiddenException('Chat is not available for this request');
+      throw new ForbiddenException(
+        'You can only chat with requests that are accepted, in progress, on the way or started',
+      );
     }
 
-    //* check if user is part of this request
     const isClient =
       role === UserRole.CLIENT && request.userId.toString() === userId;
-
     const isTechnician =
       role === UserRole.TECHNICIAN &&
       request.assignedTechnician?.toString() === userId;
@@ -59,62 +70,103 @@ export class ChatService {
     return request;
   }
 
-  //* save message in db
+  // ── Community Chat ───────────────────────────────────────────────────────
+
+  async validateCommunityAccess(
+    categoryId: string,
+    userId: string,
+    role: UserRole,
+  ): Promise<void> {
+    if (role !== UserRole.TECHNICIAN) {
+      throw new ForbiddenException('Community chat is for technicians only');
+    }
+
+    const technician = await this.technicianModel.findOne({
+      userId: new Types.ObjectId(userId),
+      'specialization.categoryId': new Types.ObjectId(categoryId),
+    });
+
+    if (!technician) {
+      throw new ForbiddenException('You are not a member of this community');
+    }
+  }
+
+  // ── Support Chat ─────────────────────────────────────────────────────────
+
+  validateSupportAccess(
+    targetUserId: string,
+    userId: string,
+    role: UserRole,
+  ): void {
+    if (role === UserRole.ADMIN) return;
+    if (targetUserId !== userId) {
+      throw new ForbiddenException('You can only access your own support chat');
+    }
+  }
+
+  // ── Shared: Save Message ─────────────────────────────────────────────────
+
   async saveMessage(
-    requestId: string,
+    roomId: string,
+    roomType: RoomType,
     senderId: string,
     senderRole: SenderRole,
     content: string,
   ): Promise<MessageDocument> {
     return this.messageModel.create({
-      requestId: new Types.ObjectId(requestId),
+      roomId,
+      roomType,
       senderId: new Types.ObjectId(senderId),
       senderRole,
       content,
     });
   }
 
-  //* get all messages
-  async getMessages(requestId: string, userId: string, role: UserRole) {
-    await this.validateRoomAccess(requestId, userId, role);
+  // ── Shared: Get Messages ─────────────────────────────────────────────────
 
+  async getMessages(roomId: string, limit = 50) {
+    return this.messageModel
+    .find({ roomId })
+    .sort({ createdAt: -1 })
+    .limit(limit)
+    .populate('senderId', 'fullName')
+    .lean();
+  }
+
+  // ── Request Chat: History (REST) ─────────────────────────────────────────
+
+  async getRequestMessages(requestId: string, userId: string, role: UserRole) {
+    await this.validateRequestAccess(requestId, userId, role);
+
+    const roomId = `room_${requestId}`;
     const messages = await this.messageModel
-    .find({ requestId: new Types.ObjectId(requestId) })
+    .find({ roomId })
     .sort({ createdAt: 1 })
     .populate('senderId', 'fullName')
     .lean();
 
-    // mark كل الرسايل اللي مش بتاعته كـ read
     await this.messageModel.updateMany(
-      {
-        requestId: new Types.ObjectId(requestId),
-        senderId: { $ne: new Types.ObjectId(userId) },
-        isRead: false,
-      },
+      { roomId, senderId: { $ne: new Types.ObjectId(userId) }, isRead: false },
       { isRead: true },
     );
 
     return { message: 'Messages retrieved successfully', data: messages };
   }
 
-  //* mark messages as read
-  async markAsRead(requestId: string, userId: string) {
-    await this.messageModel.updateMany(
-      {
-        requestId: new Types.ObjectId(requestId),
-        senderId: { $ne: new Types.ObjectId(userId) },
-        isRead: false,
-      },
-      { isRead: true },
-    );
-  }
+  // ── Unread Count ─────────────────────────────────────────────────────────
 
-  //* get unread messages count
-  async getUnreadCount(requestId: string, userId: string): Promise<number> {
+  async getUnreadCount(roomId: string, userId: string): Promise<number> {
     return this.messageModel.countDocuments({
-      requestId: new Types.ObjectId(requestId),
+      roomId,
       senderId: { $ne: new Types.ObjectId(userId) },
       isRead: false,
     });
+  }
+
+  async markAsRead(roomId: string, userId: string) {
+    await this.messageModel.updateMany(
+      { roomId, senderId: { $ne: new Types.ObjectId(userId) }, isRead: false },
+      { isRead: true },
+    );
   }
 }

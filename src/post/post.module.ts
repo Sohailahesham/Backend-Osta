@@ -5,6 +5,7 @@ import { PostController } from './post.controller';
 import { Post, PostSchema } from './schemas/post.schema';
 import { Proposal, ProposalSchema } from './schemas/proposal.schema';
 import { MainRequest, RequestSchema } from '../request/schemas/request.schema';
+import { ChatModule } from 'src/chat/chat.module';
 
 @Module({
   imports: [
@@ -13,6 +14,7 @@ import { MainRequest, RequestSchema } from '../request/schemas/request.schema';
       { name: Proposal.name, schema: ProposalSchema },
       { name: MainRequest.name, schema: RequestSchema },
     ]),
+    ChatModule,
   ],
   controllers: [PostController],
   providers: [PostService],

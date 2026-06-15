@@ -17,21 +17,22 @@ export class ChatController {
     @Param('requestId', ParseMongoIdPipe) requestId: string,
     @Req() req,
   ) {
-    return this.chatService.getMessages(
+    return this.chatService.getRequestMessages(
       requestId,
       req.user.userId,
       req.user.role,
     );
   }
 
-  @ApiOperation({ summary: 'Get unread messages count for a request' })
+  @ApiOperation({ summary: 'Get unread count for a request' })
   @Get(':requestId/unread')
   async getUnreadCount(
     @Param('requestId', ParseMongoIdPipe) requestId: string,
     @Req() req,
   ) {
+    const roomId = `room_${requestId}`;
     const count = await this.chatService.getUnreadCount(
-      requestId,
+      roomId,
       req.user.userId,
     );
     return { message: 'Unread count retrieved', data: { count } };

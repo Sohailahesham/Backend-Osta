@@ -19,6 +19,7 @@ import {
 import { CreatePostDto } from './dto/create-post.dto';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { RequestStatus } from '../request/enums/request-status.enum';
+import { ChatGateway } from 'src/chat/chat.gateway';
 
 @Injectable()
 export class PostService {
@@ -26,6 +27,7 @@ export class PostService {
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
     @InjectModel(MainRequest.name) private requestModel: Model<RequestDocument>,
+    private readonly chatGateway: ChatGateway,
   ) {}
 
   // ─── Create Post (CLIENT) ─────────────────────────────────────────────────
@@ -218,6 +220,10 @@ export class PostService {
     await this.postModel.findByIdAndUpdate(postId, {
       status: PostStatus.CANCELLED,
     });
+
+    if (post.requestId) {
+      this.chatGateway.closeRoom(post.requestId.toString());
+    }
 
     return { message: 'Post cancelled successfully' };
   }
