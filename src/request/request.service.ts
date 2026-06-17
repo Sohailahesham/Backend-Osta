@@ -217,8 +217,8 @@ export class RequestService {
     if (!technician) throw new NotFoundException('Technician not found');
 
     if (
-      technician.specialization.categoryId.toString() !==
-      request.categoryId.toString()
+      technician.specialization.categoryId.toString() !=
+      request.categoryId._id.toString()
     )
       throw new BadRequestException(
         'Technician does not specialize in this category',
