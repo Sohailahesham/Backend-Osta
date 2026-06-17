@@ -15,6 +15,11 @@ import { UserRole } from 'src/users/schemas/user.schema';
 import { InvoiceService } from 'src/invoice/invoice.service';
 import { PaymentService } from 'src/payment/payment.service';
 import { PaymentStatus } from 'src/payment/schemas/payment.schema';
+import { ChatGateway } from 'src/chat/chat.gateway';
+import {
+  Technician,
+  TechnicianDocument,
+} from 'src/technician/schemas/technician.schema';
 
 @Injectable()
 export class RequestService {
@@ -23,6 +28,9 @@ export class RequestService {
     private readonly requestModel: Model<RequestDocument>,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentService,
+    private readonly chatGateway: ChatGateway,
+    @InjectModel(Technician.name)
+    private readonly technicianModel: Model<TechnicianDocument>,
   ) {}
 
   async create(
@@ -44,17 +52,25 @@ export class RequestService {
     const filter = { status: RequestStatus.PENDING };
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName phone')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName phone')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findAll(dto: RequestPaginationDto) {
@@ -63,15 +79,15 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName email')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName email')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
@@ -85,14 +101,14 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
@@ -106,14 +122,14 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName phone')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName phone')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
@@ -123,12 +139,12 @@ export class RequestService {
     if (!Types.ObjectId.isValid(requestId))
       throw new NotFoundException('Request not found');
     const request = await this.requestModel
-      .findById(requestId)
-      .populate('userId', 'fullName email ')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name')
-      .populate('assignedTechnician', 'fullName')
-      .exec();
+    .findById(requestId)
+    .populate('userId', 'fullName email ')
+    .populate('categoryId', 'name')
+    .populate('serviceId', 'name')
+    .populate('assignedTechnician', 'fullName')
+    .exec();
     if (!request)
       throw new NotFoundException(`Request #${requestId} not found`);
     return request;
@@ -144,6 +160,19 @@ export class RequestService {
     const request = await this.findById(requestId);
     if (request.status !== RequestStatus.PENDING)
       throw new BadRequestException('Only pending requests can be accepted');
+
+    const technician = await this.technicianModel.findOne({
+      userId: new Types.ObjectId(technicianId),
+    });
+    if (!technician) throw new NotFoundException('Technician not found');
+
+    if (
+      technician.specialization.categoryId.toString() !==
+      request.categoryId.toString()
+    )
+      throw new BadRequestException(
+        'Technician does not specialize in this category',
+      );
 
     request.assignedTechnician = new Types.ObjectId(technicianId) as any;
     request.status = RequestStatus.ACCEPTED;
@@ -170,7 +199,9 @@ export class RequestService {
       );
 
     if (request.status !== RequestStatus.IN_PROGRESS)
-      throw new BadRequestException('Request must be in progress first so you must pay deposit first!');
+      throw new BadRequestException(
+        'Request must be in progress first so you must pay deposit first!',
+      );
 
     request.status = RequestStatus.ON_THE_WAY;
     return request.save();
@@ -218,56 +249,61 @@ export class RequestService {
     request.status = RequestStatus.COMPLETED;
     request.totalPrice = totalPrice;
     request.completionNote = completionNote;
-    await request.save();
-    return request;
+    const savedRequest = await request.save();
+    this.chatGateway.closeRoom(requestId);
+    return savedRequest;
   }
 
   async cancel(
-  requestId: string,
-  userId: string,
-  userRole: UserRole,
-  reason?: string,
-): Promise<RequestDocument> {
-  const request = await this.findById(requestId);
+    requestId: string,
+    userId: string,
+    userRole: UserRole,
+    reason?: string,
+  ): Promise<RequestDocument> {
+    const request = await this.findById(requestId);
 
-  if (
-    request.status === RequestStatus.ON_THE_WAY ||
-    request.status === RequestStatus.STARTED ||
-    request.status === RequestStatus.COMPLETED
-  )
-    throw new BadRequestException('Cannot cancel request at this stage');
+    if (
+      request.status === RequestStatus.ON_THE_WAY ||
+      request.status === RequestStatus.STARTED ||
+      request.status === RequestStatus.COMPLETED
+    )
+      throw new BadRequestException('Cannot cancel request at this stage');
 
-  if (userRole === UserRole.CLIENT) {
-    const requestUserId =
-      (request.userId as any)?._id?.toString() ?? request.userId?.toString();
+    if (userRole === UserRole.CLIENT) {
+      const requestUserId =
+        (request.userId as any)?._id?.toString() ?? request.userId?.toString();
 
-    if (requestUserId !== userId)
-      throw new ForbiddenException('You can only cancel your own requests');
+      if (requestUserId !== userId)
+        throw new ForbiddenException('You can only cancel your own requests');
+    }
+
+    if (userRole === UserRole.TECHNICIAN) {
+      const assignedId = this.getAssignedId(request);
+      if (!assignedId)
+        throw new BadRequestException('No technician assigned to this request');
+      if (assignedId !== userId)
+        throw new ForbiddenException(
+          'You can only cancel your assigned requests',
+        );
+    }
+
+    // ← الـ refund بيتعمل لأي حد يكنسل
+    const payment = await this.paymentService.getDepositPayment(requestId);
+    if (payment && payment.status === PaymentStatus.PAID) {
+      await this.paymentService.refundDeposit(payment);
+    }
+
+    request.status = RequestStatus.CANCELLED;
+    request.cancellation = {
+      cancelledBy: new Types.ObjectId(userId) as any,
+      role: userRole,
+      reason: reason ?? undefined,
+      cancelledAt: new Date(),
+    };
+    const savedRequest = await request.save();
+    this.chatGateway.closeRoom(requestId);
+    return savedRequest;
   }
-
-  if (userRole === UserRole.TECHNICIAN) {
-    const assignedId = this.getAssignedId(request);
-    if (!assignedId)
-      throw new BadRequestException('No technician assigned to this request');
-    if (assignedId !== userId)
-      throw new ForbiddenException('You can only cancel your assigned requests');
-  }
-
-  // ← الـ refund بيتعمل لأي حد يكنسل
-  const payment = await this.paymentService.getDepositPayment(requestId);
-  if (payment && payment.status === PaymentStatus.PAID) {
-    await this.paymentService.refundDeposit(payment);
-  }
-
-  request.status = RequestStatus.CANCELLED;
-  request.cancellation = {
-    cancelledBy: new Types.ObjectId(userId) as any,
-    role: userRole,
-    reason: reason ?? undefined,
-    cancelledAt: new Date(),
-  };
-  return request.save();
-}
 
   async delete(requestId: string): Promise<{ message: string }> {
     if (!Types.ObjectId.isValid(requestId))
@@ -297,14 +333,14 @@ export class RequestService {
     if (status) filter.status = status;
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return { data, total, page, limit, totalPages: Math.ceil(total / limit) };

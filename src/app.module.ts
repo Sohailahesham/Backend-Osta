@@ -19,6 +19,7 @@ import { InvoiceModule } from './invoice/invoice.module';
 import { WalletModule } from './wallet/wallet.module';
 import { MaintenanceShopsModule } from './maintenance-shops/maintenance-shops.module';
 import { PostModule } from './post/post.module';
+import { ChatModule } from './chat/chat.module';
 
 
 
@@ -46,6 +47,8 @@ import { PostModule } from './post/post.module';
     PaymentModule,
     InvoiceModule,
     WalletModule,
+    PostModule,
+    ChatModule,
     MaintenanceShopsModule,
     PostModule
   ],

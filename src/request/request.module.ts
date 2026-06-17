@@ -7,16 +7,22 @@ import { RequestController } from './request.controller';
 import { AuthModule } from '../auth/auth.module';
 import { InvoiceModule } from '../invoice/invoice.module';
 import { PaymentModule } from '../payment/payment.module';
- 
+import { ChatModule } from 'src/chat/chat.module';
+import {
+  Technician,
+  TechnicianSchema,
+} from 'src/technician/schemas/technician.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: MainRequest.name, schema: RequestSchema },
+      { name: Technician.name, schema: TechnicianSchema },
     ]),
     AuthModule, // provides JwtStrategy + PassportModule → enables AuthGuard('jwt')
-     InvoiceModule,
-     PaymentModule,
+    PaymentModule,
+    InvoiceModule,
+    ChatModule,
   ],
   controllers: [RequestController],
   providers: [RequestService],
