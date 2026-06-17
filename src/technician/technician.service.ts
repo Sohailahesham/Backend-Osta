@@ -138,6 +138,10 @@ export class TechnicianService {
     const technician = await this.technicianModel
     .findOne({ userId: new Types.ObjectId(userId) })
     .populate('userId')
+    .populate({
+      path: 'specialization.categoryId',
+      select: 'name',
+    })
     .lean()
     .exec();
 

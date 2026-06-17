@@ -13,8 +13,11 @@ export class MainRequest {
   @Prop({ type: Types.ObjectId, ref: 'Category', required: true })
   categoryId: Types.ObjectId;
 
-  @Prop({ type: Types.ObjectId, ref: 'ServiceEntity', required: true })
-  serviceId: Types.ObjectId;
+  @Prop({ type: Types.ObjectId, ref: 'ServiceEntity' })
+  serviceId: Types.ObjectId | null;
+
+  @Prop({ type: Types.ObjectId, ref: 'Post', default: null })
+  postId: Types.ObjectId | null;
 
   @Prop({ required: true })
   preferredDate: Date;

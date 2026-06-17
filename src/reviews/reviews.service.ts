@@ -78,7 +78,7 @@ export class ReviewsService {
     const review = await this.reviewModel.create({
       userId: new Types.ObjectId(userId),
       technicianId: technician._id, // Technician document id
-      serviceId: request.serviceId,
+      serviceId: request.serviceId!,
       requestId: new Types.ObjectId(dto.requestId),
       rating: dto.rating,
       comment: dto.comment,
@@ -87,7 +87,7 @@ export class ReviewsService {
     // 7. تحديث الـ averageRating على الـ Technician
     await Promise.all([
       this.updateTechnicianRating(technician._id.toString()),
-      this.updateServiceRating(request.serviceId.toString()),
+      this.updateServiceRating(request.serviceId!.toString()),
     ]);
 
     return {
