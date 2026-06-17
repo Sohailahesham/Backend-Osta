@@ -5,10 +5,13 @@ interface CacheEntry<T> {
   expiresAt: number;
 }
 
+
 @Injectable()
 export class MaintenanceShopsCacheService {
   private readonly store = new Map<string, CacheEntry<any>>();
 
+
+  
   get<T>(key: string): T | null {
     const entry = this.store.get(key);
     if (!entry) return null;
