@@ -17,7 +17,9 @@ import { PaymentModule } from './payment/payment.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { InvoiceModule } from './invoice/invoice.module';
 import { WalletModule } from './wallet/wallet.module';
+import { MaintenanceShopsModule } from './maintenance-shops/maintenance-shops.module';
 import { PostModule } from './post/post.module';
+
 
 
 @Module({
@@ -44,7 +46,8 @@ import { PostModule } from './post/post.module';
     PaymentModule,
     InvoiceModule,
     WalletModule,
-    PostModule,
+    MaintenanceShopsModule,
+    PostModule
   ],
   controllers: [AppController],
   providers: [AppService],
