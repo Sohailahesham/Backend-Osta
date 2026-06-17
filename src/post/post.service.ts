@@ -20,6 +20,10 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { CreateProposalDto } from './dto/create-proposal.dto';
 import { RequestStatus } from '../request/enums/request-status.enum';
 import { ChatGateway } from 'src/chat/chat.gateway';
+import {
+  Technician,
+  TechnicianDocument,
+} from 'src/technician/schemas/technician.schema';
 
 @Injectable()
 export class PostService {
@@ -27,6 +31,8 @@ export class PostService {
     @InjectModel(Post.name) private postModel: Model<PostDocument>,
     @InjectModel(Proposal.name) private proposalModel: Model<ProposalDocument>,
     @InjectModel(MainRequest.name) private requestModel: Model<RequestDocument>,
+    @InjectModel(Technician.name)
+    private technicianModel: Model<TechnicianDocument>,
     private readonly chatGateway: ChatGateway,
   ) {}
 
@@ -50,14 +56,14 @@ export class PostService {
   async findAllOpen(page = 1, limit = 10) {
     const [data, total] = await Promise.all([
       this.postModel
-        .find({ status: PostStatus.OPEN })
-        .populate('userId', 'fullName')
-        .populate('categoryId', 'name')
-        .sort({ isEmergency: -1, createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find({ status: PostStatus.OPEN })
+      .populate('userId', 'fullName')
+      .populate('categoryId', 'name')
+      .sort({ isEmergency: -1, createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
       this.postModel.countDocuments({ status: PostStatus.OPEN }),
     ]);
 
@@ -67,11 +73,11 @@ export class PostService {
   // ─── Get Post By Id ───────────────────────────────────────────────────────
   async findById(postId: string): Promise<PostDocument> {
     const post = await this.postModel
-      .findById(postId)
-      .populate('userId', 'fullName phone')
-      .populate('categoryId', 'name')
-      .populate('acceptedProposal')
-      .exec();
+    .findById(postId)
+    .populate('userId', 'fullName phone')
+    .populate('categoryId', 'name')
+    .populate('acceptedProposal')
+    .exec();
 
     if (!post) throw new NotFoundException('Post not found');
     return post;
@@ -81,13 +87,13 @@ export class PostService {
   async findMyPosts(userId: string, page = 1, limit = 10) {
     const [data, total] = await Promise.all([
       this.postModel
-        .find({ userId: new Types.ObjectId(userId) })
-        .populate('categoryId', 'name')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find({ userId: new Types.ObjectId(userId) })
+      .populate('categoryId', 'name')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
       this.postModel.countDocuments({ userId: new Types.ObjectId(userId) }),
     ]);
 
@@ -102,6 +108,19 @@ export class PostService {
   ): Promise<ProposalDocument> {
     const post = await this.postModel.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
+
+    const technician = await this.technicianModel.findOne({
+      userId: new Types.ObjectId(technicianId),
+    });
+    if (!technician) throw new NotFoundException('Technician not found');
+
+    if (
+      technician.specialization.categoryId.toString() !==
+      post.categoryId.toString()
+    )
+      throw new BadRequestException(
+        'Technician does not specialize in this category',
+      );
 
     if (post.status !== PostStatus.OPEN)
       throw new BadRequestException('Post is no longer open');
@@ -131,14 +150,14 @@ export class PostService {
       throw new ForbiddenException('Not authorized');
 
     return this.proposalModel
-      .find({ postId: new Types.ObjectId(postId) })
-      .populate(
-        'technicianId',
-        'fullName averageRating totalReviews yearsOfExperience specialization verificationStatus',
-      )
-      .sort({ createdAt: -1 })
-      .lean()
-      .exec();
+    .find({ postId: new Types.ObjectId(postId) })
+    .populate(
+      'technicianId',
+      'fullName averageRating totalReviews yearsOfExperience specialization verificationStatus',
+    )
+    .sort({ createdAt: -1 })
+    .lean()
+    .exec();
   }
 
   // ─── Accept Proposal (CLIENT) ─────────────────────────────────────────────
@@ -157,6 +176,11 @@ export class PostService {
 
     if (proposal.postId.toString() !== postId)
       throw new BadRequestException('Proposal does not belong to this post');
+
+    const rejectedProposals = await this.proposalModel.find({
+      postId: new Types.ObjectId(postId),
+      _id: { $ne: proposalId },
+    });
 
     await this.proposalModel.updateMany(
       { postId: new Types.ObjectId(postId), _id: { $ne: proposalId } },
@@ -179,6 +203,12 @@ export class PostService {
       status: RequestStatus.ACCEPTED,
       postId: (post as any)._id,
     });
+
+    this.chatGateway.closeCustomRooms(
+      postId,
+      proposal.technicianId.toString(),
+      rejectedProposals.map((p) => p.technicianId.toString()),
+    );
 
     await this.postModel.findByIdAndUpdate(postId, {
       status: PostStatus.ACCEPTED,

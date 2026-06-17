@@ -37,4 +37,19 @@ export class ChatController {
     );
     return { message: 'Unread count retrieved', data: { count } };
   }
+
+  @ApiOperation({ summary: 'Get message history for a custom (post) chat' })
+  @Get('custom/:postId/:technicianId/messages')
+  getCustomMessages(
+    @Param('postId', ParseMongoIdPipe) postId: string,
+    @Param('technicianId', ParseMongoIdPipe) technicianId: string,
+    @Req() req,
+  ) {
+    return this.chatService.getCustomRequestMessages(
+      postId,
+      technicianId,
+      req.user.userId,
+      req.user.role,
+    );
+  }
 }

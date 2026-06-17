@@ -15,6 +15,8 @@ import { ChatService } from './chat.service';
 import { JwtService } from '@nestjs/jwt';
 import { RoomType, SenderRole } from './schemas/message.schema';
 import { UserRole } from 'src/users/schemas/user.schema';
+import { UsePipes, ValidationPipe } from '@nestjs/common';
+import { SendMessageDto } from './dto/send-message.dto';
 
 @WebSocketGateway({
   cors: {
@@ -23,10 +25,10 @@ import { UserRole } from 'src/users/schemas/user.schema';
   },
   namespace: '/chat',
 })
+@UsePipes(new ValidationPipe({ whitelist: true }))
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer() server: Server;
 
-  //* map of connected users
   private connectedUsers = new Map<
     string,
     { userId: string; role: UserRole; email: string }
@@ -37,7 +39,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     private jwtService: JwtService,
   ) {}
 
-  // ── Connection ───────────────────────────────────────────────────────────
+  // ── Connection ─────────────────────────────────────────────────────────────
 
   async handleConnection(client: Socket) {
     try {
@@ -54,6 +56,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const payload = this.jwtService.verify(token, {
         secret: process.env.JWT_SECRET,
       });
+
       this.connectedUsers.set(client.id, {
         userId: payload.sub,
         role: payload.role,
@@ -71,7 +74,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.connectedUsers.delete(client.id);
   }
 
-  // ── 1. Request Chat ──────────────────────────────────────────────────────
+  // ── 1. Fixed Service Request Chat ─────────────────────────────────────────
 
   @SubscribeMessage('joinRoom')
   async handleJoinRoom(
@@ -107,7 +110,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { requestId: string; content: string },
+    @MessageBody() data: SendMessageDto,
   ) {
     const user = this.connectedUsers.get(client.id);
     if (!user) throw new WsException('Unauthorized');
@@ -148,6 +151,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         createdAt: message.createdAt,
       });
     } catch (error) {
+      // لو الـ error من blockContent → بنبعت الـ message للـ client بس
       client.emit('error', { message: error.message });
     }
   }
@@ -165,7 +169,138 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     client.to(roomId).emit('messagesRead', { roomId, readBy: user.userId });
   }
 
-  // ── 2. Community Chat ────────────────────────────────────────────────────
+  // ── 2. Custom Request Chat (Post + Proposal) ───────────────────────────────
+  //
+  // Room ID: `custom_{postId}_{technicianId}`
+  // - الـ client يبعت postId + technicianId (عشان يدخل room فني معين)
+  // - الـ technician يبعت postId بس (الـ technicianId بتاعه من الـ token)
+
+  @SubscribeMessage('joinCustomRoom')
+  async handleJoinCustomRoom(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { postId: string; technicianId?: string },
+  ) {
+    const user = this.connectedUsers.get(client.id);
+    if (!user) throw new WsException('Unauthorized');
+
+    try {
+      // الـ technician → technicianId هو نفسه
+      // الـ client → لازم يبعت technicianId عشان يعرف يدخل room مين
+      const technicianId =
+        user.role === UserRole.TECHNICIAN ? user.userId : data.technicianId;
+
+      if (!technicianId) {
+        client.emit('error', {
+          message: 'technicianId is required for clients',
+        });
+        return;
+      }
+
+      await this.chatService.validateCustomRequestAccess(
+        data.postId,
+        technicianId,
+        user.userId,
+        user.role,
+      );
+
+      const roomId = `custom_${data.postId}_${technicianId}`;
+      await client.join(roomId);
+
+      const unreadCount = await this.chatService.getUnreadCount(
+        roomId,
+        user.userId,
+      );
+      client.emit('joinedCustomRoom', { roomId, unreadCount });
+      client
+      .to(roomId)
+      .emit('userJoined', { userId: user.userId, role: user.role });
+    } catch (error) {
+      client.emit('error', { message: error.message });
+    }
+  }
+
+  @SubscribeMessage('sendCustomMessage')
+  async handleSendCustomMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody()
+    data: {
+      postId: string;
+      technicianId?: string;
+      content: string;
+    },
+  ) {
+    const user = this.connectedUsers.get(client.id);
+    if (!user) throw new WsException('Unauthorized');
+    if (!data.content?.trim()) {
+      client.emit('error', { message: 'Empty message' });
+      return;
+    }
+
+    try {
+      const technicianId =
+        user.role === UserRole.TECHNICIAN ? user.userId : data.technicianId;
+
+      if (!technicianId) {
+        client.emit('error', {
+          message: 'technicianId is required for clients',
+        });
+        return;
+      }
+
+      await this.chatService.validateCustomRequestAccess(
+        data.postId,
+        technicianId,
+        user.userId,
+        user.role,
+      );
+
+      const roomId = `custom_${data.postId}_${technicianId}`;
+      const senderRole =
+        user.role === UserRole.CLIENT
+          ? SenderRole.CLIENT
+          : SenderRole.TECHNICIAN;
+
+      const message = await this.chatService.saveMessage(
+        roomId,
+        RoomType.CUSTOM_REQUEST,
+        user.userId,
+        senderRole,
+        data.content.trim(),
+      );
+
+      this.server.to(roomId).emit('newCustomMessage', {
+        _id: message._id,
+        roomId,
+        roomType: RoomType.CUSTOM_REQUEST,
+        senderId: user.userId,
+        senderRole,
+        content: message.content,
+        isRead: false,
+        createdAt: message.createdAt,
+      });
+    } catch (error) {
+      client.emit('error', { message: error.message });
+    }
+  }
+
+  @SubscribeMessage('markCustomAsRead')
+  async handleMarkCustomAsRead(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { postId: string; technicianId?: string },
+  ) {
+    const user = this.connectedUsers.get(client.id);
+    if (!user) throw new WsException('Unauthorized');
+
+    const technicianId =
+      user.role === UserRole.TECHNICIAN ? user.userId : data.technicianId;
+    if (!technicianId) return;
+
+    const roomId = `custom_${data.postId}_${technicianId}`;
+    await this.chatService.markAsRead(roomId, user.userId);
+    client.to(roomId).emit('messagesRead', { roomId, readBy: user.userId });
+  }
+
+  // ── 3. Community Chat ──────────────────────────────────────────────────────
 
   @SubscribeMessage('joinCommunity')
   async handleJoinCommunity(
@@ -185,7 +320,6 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const roomId = `community_${data.categoryId}`;
       await client.join(roomId);
 
-      // آخر 50 رسالة للـ history
       const history = await this.chatService.getMessages(roomId, 50);
       client.emit('joinedCommunity', { roomId, history });
       client
@@ -237,18 +371,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ── 3. Support Chat ──────────────────────────────────────────────────────
+  // ── 4. Support Chat ────────────────────────────────────────────────────────
 
   @SubscribeMessage('joinSupport')
   async handleJoinSupport(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { userId?: string }, // الـ admin بيبعت userId، الـ user مبيبعتش حاجة
+    @MessageBody() data: { userId?: string },
   ) {
     const user = this.connectedUsers.get(client.id);
     if (!user) throw new WsException('Unauthorized');
 
     try {
-      // الـ admin يدخل room أي user، غيره يدخل room بتاعته بس
       const targetUserId =
         user.role === UserRole.ADMIN && data.userId ? data.userId : user.userId;
 
@@ -322,8 +455,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
   }
 
-  // ── Public method ────────────────────────────────────────────────────────
+  // ── Public Methods ─────────────────────────────────────────────────────────
 
+  /** يُستدعى من RequestService لما الـ fixed request يخلص */
   closeRoom(requestId: string) {
     const roomId = `room_${requestId}`;
     this.server.to(roomId).emit('roomClosed', {
@@ -332,104 +466,21 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
     this.server.in(roomId).socketsLeave(roomId);
   }
+
+  /** يُستدعى لما الـ post يتقبل proposal واحد — بيقفل باقي الـ rooms */
+  async closeCustomRooms(
+    postId: string,
+    acceptedTechnicianId: string,
+    rejectedTechnicianIds: string[],
+  ) {
+    for (const techId of rejectedTechnicianIds) {
+      const roomId = `custom_${postId}_${techId}`;
+      this.server.to(roomId).emit('customRoomClosed', {
+        postId,
+        acceptedTechnicianId,
+        message: 'The post owner has selected a technician.',
+      });
+      this.server.in(roomId).socketsLeave(roomId);
+    }
+  }
 }
-
-// function constructor(
-//   private: any,
-//   chatService: any,
-//   ChatService: typeof ChatService,
-//   private1: any,
-//   jwtService: any,
-//   JwtService: typeof JwtService,
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleConnection(client: any, Socket: typeof Socket) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleDisconnect(client: any, Socket: typeof Socket) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleJoinRoom(
-//   arg0: any,
-//   client: any,
-//   Socket: typeof Socket,
-//   arg3: any,
-//   data: any,
-//   arg5: { requestId: any },
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleSendMessage(
-//   arg0: any,
-//   client: any,
-//   Socket: typeof Socket,
-//   arg3: any,
-//   data: any,
-//   arg5: { requestId: any; content: any },
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleMarkAsRead(
-//   arg0: any,
-//   client: any,
-//   Socket: typeof Socket,
-//   arg3: any,
-//   data: any,
-//   arg5: { requestId: any },
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleJoinCommunity(
-//   arg0: any,
-//   client: any,
-//   Socket: typeof Socket,
-//   arg3: any,
-//   data: any,
-//   arg5: { categoryId: any },
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleCommunityMessage(
-//   arg0: any,
-//   client: any,
-//   Socket: typeof Socket,
-//   arg3: any,
-//   data: any,
-//   arg5: { categoryId: any; content: any },
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleJoinSupport(
-//   arg0: any,
-//   client: any,
-//   Socket: typeof Socket,
-//   arg3: any,
-//   data: any,
-//   arg5: { userId: any },
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function handleSupportMessage(
-//   arg0: any,
-//   client: any,
-//   Socket: typeof Socket,
-//   arg3: any,
-//   data: any,
-//   arg5: { targetUserId: any; content: any },
-// ) {
-//   throw new Error('Function not implemented.');
-// }
-
-// function closeRoom(requestId: any, string: any) {
-//   throw new Error('Function not implemented.');
-// }

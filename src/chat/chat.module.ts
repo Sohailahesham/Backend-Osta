@@ -10,6 +10,8 @@ import {
   Technician,
   TechnicianSchema,
 } from 'src/technician/schemas/technician.schema';
+import { Proposal, ProposalSchema } from 'src/post/schemas/proposal.schema';
+import { Post, PostSchema } from 'src/post/schemas/post.schema';
 
 @Module({
   imports: [
@@ -17,6 +19,8 @@ import {
       { name: Message.name, schema: MessageSchema },
       { name: MainRequest.name, schema: RequestSchema },
       { name: Technician.name, schema: TechnicianSchema },
+      { name: Proposal.name, schema: ProposalSchema },
+      { name: Post.name, schema: PostSchema },
     ]),
     JwtModule.register({
       secret: process.env.JWT_SECRET,

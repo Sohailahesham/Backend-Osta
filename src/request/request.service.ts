@@ -16,6 +16,10 @@ import { InvoiceService } from 'src/invoice/invoice.service';
 import { PaymentService } from 'src/payment/payment.service';
 import { PaymentStatus } from 'src/payment/schemas/payment.schema';
 import { ChatGateway } from 'src/chat/chat.gateway';
+import {
+  Technician,
+  TechnicianDocument,
+} from 'src/technician/schemas/technician.schema';
 
 @Injectable()
 export class RequestService {
@@ -25,6 +29,8 @@ export class RequestService {
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentService,
     private readonly chatGateway: ChatGateway,
+    @InjectModel(Technician.name)
+    private readonly technicianModel: Model<TechnicianDocument>,
   ) {}
 
   async create(
@@ -155,6 +161,19 @@ export class RequestService {
     if (request.status !== RequestStatus.PENDING)
       throw new BadRequestException('Only pending requests can be accepted');
 
+    const technician = await this.technicianModel.findOne({
+      userId: new Types.ObjectId(technicianId),
+    });
+    if (!technician) throw new NotFoundException('Technician not found');
+
+    if (
+      technician.specialization.categoryId.toString() !==
+      request.categoryId.toString()
+    )
+      throw new BadRequestException(
+        'Technician does not specialize in this category',
+      );
+
     request.assignedTechnician = new Types.ObjectId(technicianId) as any;
     request.status = RequestStatus.ACCEPTED;
     await request.save();
@@ -180,7 +199,9 @@ export class RequestService {
       );
 
     if (request.status !== RequestStatus.IN_PROGRESS)
-      throw new BadRequestException('Request must be in progress first so you must pay deposit first!');
+      throw new BadRequestException(
+        'Request must be in progress first so you must pay deposit first!',
+      );
 
     request.status = RequestStatus.ON_THE_WAY;
     return request.save();
@@ -234,42 +255,44 @@ export class RequestService {
   }
 
   async cancel(
-  requestId: string,
-  userId: string,
-  userRole: UserRole,
-  reason?: string,
-): Promise<RequestDocument> {
-  const request = await this.findById(requestId);
+    requestId: string,
+    userId: string,
+    userRole: UserRole,
+    reason?: string,
+  ): Promise<RequestDocument> {
+    const request = await this.findById(requestId);
 
-  if (
-    request.status === RequestStatus.ON_THE_WAY ||
-    request.status === RequestStatus.STARTED ||
-    request.status === RequestStatus.COMPLETED
-  )
-    throw new BadRequestException('Cannot cancel request at this stage');
+    if (
+      request.status === RequestStatus.ON_THE_WAY ||
+      request.status === RequestStatus.STARTED ||
+      request.status === RequestStatus.COMPLETED
+    )
+      throw new BadRequestException('Cannot cancel request at this stage');
 
-  if (userRole === UserRole.CLIENT) {
-    const requestUserId =
-      (request.userId as any)?._id?.toString() ?? request.userId?.toString();
+    if (userRole === UserRole.CLIENT) {
+      const requestUserId =
+        (request.userId as any)?._id?.toString() ?? request.userId?.toString();
 
-    if (requestUserId !== userId)
-      throw new ForbiddenException('You can only cancel your own requests');
-  }
-
-  if (userRole === UserRole.TECHNICIAN) {
-    const assignedId = this.getAssignedId(request);
-    if (!assignedId)
-      throw new BadRequestException('No technician assigned to this request');
-    if (assignedId !== userId)
-      throw new ForbiddenException('You can only cancel your assigned requests');
-  }
-
-  // ← الـ refund بيتعمل لأي حد يكنسل
-  const payment = await this.paymentService.getDepositPayment(requestId);
-  if (payment && payment.status === PaymentStatus.PAID) {
-    await this.paymentService.refundDeposit(payment);
+      if (requestUserId !== userId)
+        throw new ForbiddenException('You can only cancel your own requests');
     }
-    
+
+    if (userRole === UserRole.TECHNICIAN) {
+      const assignedId = this.getAssignedId(request);
+      if (!assignedId)
+        throw new BadRequestException('No technician assigned to this request');
+      if (assignedId !== userId)
+        throw new ForbiddenException(
+          'You can only cancel your assigned requests',
+        );
+    }
+
+    // ← الـ refund بيتعمل لأي حد يكنسل
+    const payment = await this.paymentService.getDepositPayment(requestId);
+    if (payment && payment.status === PaymentStatus.PAID) {
+      await this.paymentService.refundDeposit(payment);
+    }
+
     request.status = RequestStatus.CANCELLED;
     request.cancellation = {
       cancelledBy: new Types.ObjectId(userId) as any,

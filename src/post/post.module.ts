@@ -6,6 +6,10 @@ import { Post, PostSchema } from './schemas/post.schema';
 import { Proposal, ProposalSchema } from './schemas/proposal.schema';
 import { MainRequest, RequestSchema } from '../request/schemas/request.schema';
 import { ChatModule } from 'src/chat/chat.module';
+import {
+  Technician,
+  TechnicianSchema,
+} from 'src/technician/schemas/technician.schema';
 
 @Module({
   imports: [
@@ -13,6 +17,7 @@ import { ChatModule } from 'src/chat/chat.module';
       { name: Post.name, schema: PostSchema },
       { name: Proposal.name, schema: ProposalSchema },
       { name: MainRequest.name, schema: RequestSchema },
+      { name: Technician.name, schema: TechnicianSchema },
     ]),
     ChatModule,
   ],
