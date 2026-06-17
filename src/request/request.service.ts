@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
 import {
   Injectable,
   NotFoundException,
@@ -20,6 +21,8 @@ import {
   Technician,
   TechnicianDocument,
 } from 'src/technician/schemas/technician.schema';
+import { Request } from 'express';
+import { AuthRequest } from 'src/common/interfaces/auth-request.interface';
 
 @Injectable()
 export class RequestService {
@@ -47,15 +50,30 @@ export class RequestService {
     });
   }
 
-  async findAllPending(dto: RequestPaginationDto) {
+  async findAllPending(dto: RequestPaginationDto, req: AuthRequest) {
     const { page = 1, limit = 10 } = dto;
-    const filter = { status: RequestStatus.PENDING };
+    const filter: {
+      status: RequestStatus;
+      assignedTechnician: null;
+      categoryId?: Types.ObjectId;
+    } = {
+      status: RequestStatus.PENDING,
+      assignedTechnician: null,
+    };
+
+    const technician = await this.technicianModel.findOne({
+      userId: new Types.ObjectId(req.user.userId),
+    });
+    if (technician)
+      filter.categoryId = new Types.ObjectId(
+        technician.specialization.categoryId,
+      );
     const [data, total] = await Promise.all([
       this.requestModel
       .find(filter)
-      .populate('userId', 'fullName phone')
+      .populate('userId', 'fullName governorate city')
       .populate('categoryId', 'name')
-      .populate('serviceId', 'name')
+      .populate('serviceId', 'name description priceRange')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -74,9 +92,10 @@ export class RequestService {
   }
 
   async findAll(dto: RequestPaginationDto) {
-    const { page = 1, limit = 10, status } = dto;
+    const { page = 1, limit = 10, status, categoryId } = dto;
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
+    if (categoryId) filter.categoryId = new Types.ObjectId(categoryId);
     const [data, total] = await Promise.all([
       this.requestModel
       .find(filter)
@@ -90,7 +109,15 @@ export class RequestService {
       .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findMyRequests(userId: string, dto: RequestPaginationDto) {
@@ -111,7 +138,15 @@ export class RequestService {
       .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findAssignedRequests(technicianId: string, dto: RequestPaginationDto) {
@@ -123,16 +158,31 @@ export class RequestService {
     const [data, total] = await Promise.all([
       this.requestModel
       .find(filter)
-      .populate('userId', 'fullName phone')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name')
+      .populate('userId', 'fullName governorate city')
+      .populate('serviceId', 'name priceRange')
+      .populate({
+        path: 'postId',
+        select: 'budget acceptedProposal title',
+        populate: {
+          path: 'acceptedProposal',
+          select: 'estimatedTime price',
+        },
+      })
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
       .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findById(requestId: string): Promise<RequestDocument> {
@@ -142,7 +192,7 @@ export class RequestService {
     .findById(requestId)
     .populate('userId', 'fullName email ')
     .populate('categoryId', 'name')
-    .populate('serviceId', 'name')
+    .populate('serviceId', 'name priceRange')
     .populate('assignedTechnician', 'fullName')
     .exec();
     if (!request)
@@ -343,6 +393,14 @@ export class RequestService {
       .exec(),
       this.requestModel.countDocuments(filter),
     ]);
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

@@ -23,6 +23,7 @@ import { UserRole } from 'src/users/schemas/user.schema';
 import { CancelRequestDto } from './dto/cancel-request.dto';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { CompleteRequestDto } from './dto/complete-request.dto';
+import type { AuthRequest } from 'src/common/interfaces/auth-request.interface';
 
 @ApiTags('Requests')
 @ApiBearerAuth('JWT')
@@ -49,13 +50,16 @@ export class RequestController {
     return this.requestService.findAll(paginationDto);
   }
 
-  // GET /requests/pending — TECHNICIAN + ADMIN
+  // GET /requests/pending — TECHNICIAN
   @ApiOperation({ summary: '[Technician/Admin] Get pending requests' })
   @Get('pending')
   @UseGuards(RolesGuard)
-  @Roles(UserRole.TECHNICIAN, UserRole.ADMIN)
-  async findAllPending(@Query() paginationDto: RequestPaginationDto) {
-    return this.requestService.findAllPending(paginationDto);
+  @Roles(UserRole.TECHNICIAN)
+  async findAllPending(
+    @Query() paginationDto: RequestPaginationDto,
+    @Req() req: AuthRequest,
+  ) {
+    return this.requestService.findAllPending(paginationDto, req);
   }
 
   // GET /requests/my — CLIENT only
