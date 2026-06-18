@@ -10,6 +10,10 @@ import {
   RequestDocument,
 } from 'src/request/schemas/request.schema';
 import { RequestStatus } from 'src/request/enums/request-status.enum';
+import {
+  Technician,
+  TechnicianDocument,
+} from 'src/technician/schemas/technician.schema';
 
 @Injectable()
 export class UsersService {
@@ -18,6 +22,8 @@ export class UsersService {
     private readonly userModel: Model<UserDocument>,
     @InjectModel(MainRequest.name)
     private readonly requestModel: Model<RequestDocument>,
+    @InjectModel(Technician.name)
+    private readonly technicianModel: Model<TechnicianDocument>,
   ) {}
 
   async getMe(userId: string) {
@@ -49,7 +55,7 @@ export class UsersService {
   async getDashboard(userId: string) {
     const userObjectId = new Types.ObjectId(userId);
 
-    const [stats, recentRequests, activeRequest] = await Promise.all([
+    const [stats, recentRequests] = await Promise.all([
       //* request stats by status
       this.requestModel.aggregate([
         { $match: { userId: userObjectId } },
@@ -61,27 +67,45 @@ export class UsersService {
         },
       ]),
 
-      //* recent requests
+      //* recent completed requests
       this.requestModel
-      .find({ userId: userObjectId })
+      .find({ userId: userObjectId, status: RequestStatus.COMPLETED })
       .sort({ createdAt: -1 })
       .limit(5)
       .populate('categoryId', 'name image')
-      // .populate('serviceId', 'title price')
       .populate('serviceId', 'name priceRange')
-      // .select('title status preferredDate preferredTime createdAt')
-      .select('title status preferredDate preferredTime createdAt address categoryId serviceId')
-      .lean(),
-
-      //* active request
-      this.requestModel
-      .findOne({ userId: userObjectId, status: RequestStatus.IN_PROGRESS })
-      .populate('categoryId', 'name image')
-      .populate('serviceId', 'name priceRange')
-      .populate('assignedTechnician', 'fullName phone')
+      .populate('assignedTechnician', 'fullName')
+      .select(
+        'title status preferredDate createdAt categoryId serviceId assignedTechnician totalCost userRating',
+      )
       .lean(),
     ]);
 
+    //* active request
+    const activeRequestRaw = await this.requestModel
+    .findOne({ userId: userObjectId, status: RequestStatus.IN_PROGRESS })
+    .populate('categoryId', 'name image')
+    .populate('serviceId', 'name priceRange')
+    .populate('assignedTechnician', 'fullName')
+    .lean();
+
+    let activeRequest: any = activeRequestRaw;
+
+    if (activeRequestRaw?.assignedTechnician) {
+      const technician = await this.technicianModel
+      .findOne({ userId: (activeRequestRaw.assignedTechnician as any)._id })
+      .select('averageRating yearsOfExperience')
+      .lean();
+
+      activeRequest = {
+        ...activeRequestRaw,
+        assignedTechnician: {
+          ...(activeRequestRaw.assignedTechnician as any),
+          averageRating: technician?.averageRating ?? 0,
+          yearsOfExperience: technician?.yearsOfExperience ?? 0,
+        },
+      };
+    }
 
     //* calculate stats
     const counts = {
