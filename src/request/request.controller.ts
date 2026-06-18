@@ -129,19 +129,19 @@ export class RequestController {
   // PATCH /requests/:id/complete — TECHNICIAN completes their request
   @ApiOperation({ summary: '[Technician] Mark request as complete' })
   @Patch(':id/complete')
-  @UseGuards(AuthGuard('jwt'))
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TECHNICIAN)
   completeRequest(
-    @Param('id') id: string,
-    @Body() dto: CompleteRequestDto,
-    @Req() req,
-  ) {
-    return this.requestService.completeRequest(
-      id,
-      req.user.userId,
-      dto.totalPrice,
-      dto.completionNote,
-    );
-  }
+  @Param('id') id: string,
+  @Body() completeRequestDto: CompleteRequestDto,
+  @Req() req,
+) {
+  return this.requestService.completeRequest(
+    id,
+    req.user.userId,
+    completeRequestDto,
+  );
+}
 
   // PATCH /requests/:id/status — ADMIN only (override any status)
   @ApiOperation({ summary: '[Admin] Override request status' })

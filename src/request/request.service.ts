@@ -23,6 +23,7 @@ import {
 } from 'src/technician/schemas/technician.schema';
 import { Request } from 'express';
 import { AuthRequest } from 'src/common/interfaces/auth-request.interface';
+import { CompleteRequestDto } from './dto/complete-request.dto';
 
 @Injectable()
 export class RequestService {
@@ -299,33 +300,43 @@ export class RequestService {
     return request.save();
   }
 
-  async completeRequest(
-    requestId: string,
-    technicianId: string,
-    totalPrice: number,
-    completionNote: string,
-  ): Promise<RequestDocument> {
-    const request = await this.findById(requestId);
-    const assignedId = this.getAssignedId(request);
+async completeRequest(
+  requestId: string,
+  technicianId: string,
+  completeRequestDto: CompleteRequestDto,
+): Promise<RequestDocument> {
+  const request = await this.findById(requestId);
+  const assignedId = this.getAssignedId(request);
 
-    if (!assignedId)
-      throw new BadRequestException('No technician assigned to this request');
+  if (!assignedId)
+    throw new BadRequestException('No technician assigned to this request');
 
-    if (assignedId !== technicianId)
-      throw new ForbiddenException(
-        'You can only complete your assigned requests',
-      );
+  if (assignedId !== technicianId)
+    throw new ForbiddenException(
+      'You can only complete your assigned requests',
+    );
 
-    if (request.status !== RequestStatus.STARTED)
-      throw new BadRequestException('Only started requests can be completed');
+  if (request.status !== RequestStatus.STARTED)
+    throw new BadRequestException('Only started requests can be completed');
 
-    request.status = RequestStatus.COMPLETED;
-    request.totalPrice = totalPrice;
-    request.completionNote = completionNote;
-    const savedRequest = await request.save();
-    this.chatGateway.closeRoom(requestId);
-    return savedRequest;
-  }
+  const {
+    servicePrice,
+    extraMaterialsPrice = 0,
+    completionNote,
+  } = completeRequestDto;
+
+  request.status = RequestStatus.COMPLETED;
+  request.servicePrice = servicePrice;
+  request.extraMaterialsPrice = extraMaterialsPrice;
+  request.totalPrice = servicePrice + extraMaterialsPrice;
+  request.completionNote = completionNote || null; 
+
+  const savedRequest = await request.save();
+
+  this.chatGateway.closeRoom(requestId);
+
+  return savedRequest;
+}
 
   async cancel(
     requestId: string,
