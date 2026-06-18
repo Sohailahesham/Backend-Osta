@@ -1,9 +1,20 @@
-import { IsNumber, IsString, Min, IsNotEmpty } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  Min,
+} from 'class-validator';
 
 export class CompleteRequestDto {
   @IsNumber()
   @Min(0)
-  totalPrice: number;
+  servicePrice: number;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  extraMaterialsPrice?: number;
 
   @IsString()
   @IsNotEmpty()

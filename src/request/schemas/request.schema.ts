@@ -4,7 +4,6 @@ import { DepositStatus, RequestStatus } from '../enums/request-status.enum';
 import { UserRole } from 'src/users/schemas/user.schema';
 export type RequestDocument = MainRequest & Document;
 
-
 @Schema({ timestamps: true })
 export class MainRequest {
   @Prop({ type: Types.ObjectId, ref: 'User', required: true, index: true })
@@ -78,6 +77,12 @@ export class MainRequest {
 
   @Prop({ type: String, trim: true, default: null })
   completionNote: string | null;
+
+  @Prop()
+  servicePrice?: number;
+
+  @Prop({ default: 0 })
+  extraMaterialsPrice?: number;
 
   // createdAt & updatedAt auto-added by { timestamps: true }
   createdAt: Date;
