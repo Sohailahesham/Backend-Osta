@@ -136,11 +136,34 @@ export class RequestService {
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
+      .lean()
       .exec(),
       this.requestModel.countDocuments(filter),
     ]);
+
+    // جيب بيانات الفني لكل request عنده assignedTechnician
+    const enrichedData = await Promise.all(
+      data.map(async (request) => {
+        if (!request.assignedTechnician) return request;
+
+        const technician = await this.technicianModel
+        .findOne({ userId: (request.assignedTechnician as any)._id })
+        .select('averageRating yearsOfExperience')
+        .lean();
+
+        return {
+          ...request,
+          assignedTechnician: {
+            ...(request.assignedTechnician as any),
+            averageRating: technician?.averageRating ?? 0,
+            yearsOfExperience: technician?.yearsOfExperience ?? 0,
+          },
+        };
+      }),
+    );
+
     return {
-      data,
+      data: enrichedData,
       meta: {
         total,
         page,
