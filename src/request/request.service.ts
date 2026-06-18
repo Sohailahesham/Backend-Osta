@@ -306,7 +306,7 @@ async completeRequest(
   request.servicePrice = servicePrice;
   request.extraMaterialsPrice = extraMaterialsPrice;
   request.totalPrice = servicePrice + extraMaterialsPrice;
-  request.completionNote = completionNote;
+  request.completionNote = completionNote || null; 
 
   const savedRequest = await request.save();
 
