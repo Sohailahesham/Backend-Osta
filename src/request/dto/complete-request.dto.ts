@@ -16,7 +16,7 @@ export class CompleteRequestDto {
   @Min(0)
   extraMaterialsPrice?: number;
 
-  @IsString()
-  @IsNotEmpty()
-  completionNote: string;
+  @IsOptional()
+@IsString()
+completionNote?: string;
 }
