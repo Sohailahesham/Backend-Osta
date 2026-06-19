@@ -24,18 +24,23 @@ export class ChatController {
     );
   }
 
-  @ApiOperation({ summary: 'Get unread count for a request' })
+  @ApiOperation({ summary: 'Get unread count and last message for a request' })
   @Get(':requestId/unread')
   async getUnreadCount(
     @Param('requestId', ParseMongoIdPipe) requestId: string,
     @Req() req,
   ) {
     const roomId = `room_${requestId}`;
-    const count = await this.chatService.getUnreadCount(
+    // ⚠️ بنمرر req.user.role الحقيقي دلوقتي — قبل كان متثبت على client دايمًا
+    const { count, lastMessage } = await this.chatService.getUnreadCount(
       roomId,
       req.user.userId,
+      req.user.role,
     );
-    return { message: 'Unread count retrieved', data: { count } };
+    return {
+      message: 'Unread count retrieved',
+      data: { count, lastMessage },
+    };
   }
 
   @ApiOperation({ summary: 'Get message history for a custom (post) chat' })

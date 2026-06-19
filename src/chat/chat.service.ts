@@ -345,15 +345,36 @@ Reply with ONLY a JSON object: {"flagged": true/false, "reason": "short reason o
 
   // ── Unread Count ───────────────────────────────────────────────────────────
 
-  async getUnreadCount(roomId: string, userId: string): Promise<number> {
+  async getUnreadCount(roomId: string, userId: string, role: UserRole) {
+    // ⚠️ كانت متثبتة على UserRole.CLIENT دايمًا — كانت بترفض الفنيين.
+    // دلوقتي بتاخد الـ role الحقيقي بتاع المستخدم اللي عامل الـ request.
     const requestId = roomId.split('_')[1];
-    await this.validateRequestAccess(requestId, userId, UserRole.CLIENT);
+    await this.validateRequestAccess(requestId, userId, role);
 
-    return await this.messageModel.countDocuments({
+    const count = await this.messageModel.countDocuments({
       roomId,
       senderId: { $ne: new Types.ObjectId(userId) },
       isRead: false,
     });
+
+    // آخر رسالة في الـ room — أي طرف بعتها (مش بس الرسايل غير المقروءة)
+    const lastMessage = await this.messageModel
+    .findOne({ roomId })
+    .sort({ createdAt: -1 })
+    .select('content createdAt senderId senderRole')
+    .lean();
+
+    return {
+      count,
+      lastMessage: lastMessage
+        ? {
+            content: lastMessage.content,
+            createdAt: lastMessage.createdAt,
+            senderId: lastMessage.senderId.toString(),
+            senderRole: lastMessage.senderRole,
+          }
+        : null,
+    };
   }
 
   async markAsRead(roomId: string, userId: string) {

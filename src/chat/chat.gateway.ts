@@ -97,6 +97,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const unreadCount = await this.chatService.getUnreadCount(
         roomId,
         user.userId,
+        user.role,
       );
       client.emit('joinedRoom', { roomId, unreadCount });
       client
@@ -209,6 +210,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const unreadCount = await this.chatService.getUnreadCount(
         roomId,
         user.userId,
+        user.role,
       );
       client.emit('joinedCustomRoom', { roomId, unreadCount });
       client
