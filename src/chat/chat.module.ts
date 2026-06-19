@@ -5,6 +5,7 @@ import { ChatGateway } from './chat.gateway';
 import { ChatService } from './chat.service';
 import { ChatController } from './chat.controller';
 import { Message, MessageSchema } from './schemas/message.schema';
+import { ProfanityFilterService } from './profanity-filter.service';
 import { MainRequest, RequestSchema } from 'src/request/schemas/request.schema';
 import {
   Technician,
@@ -27,7 +28,7 @@ import { Post, PostSchema } from 'src/post/schemas/post.schema';
     }),
   ],
   controllers: [ChatController],
-  providers: [ChatGateway, ChatService],
+  providers: [ChatGateway, ChatService, ProfanityFilterService],
   exports: [ChatGateway], // export عشان request.service يقدر يستخدم closeRoom
 })
 export class ChatModule {}
