@@ -7,23 +7,26 @@ import { emergencyContacts } from './emergency-contacts';
 export class EmergencyService {
   constructor(private readonly ai: AiOrchestratorService) {}
 
-  
-async detect(message: string) {
-  const result = await this.ai.emergency(emergencyPrompt(message));
+  async detect(message: string) {
+    const result = await this.ai.emergency(emergencyPrompt(message));
 
-  if (result.isEmergency) {
-    const contacts: any = { ambulance: emergencyContacts.ambulance };
+    if (result.isEmergency) {
+      const contacts: any = { ambulance: emergencyContacts.ambulance };
 
-    if (['gas', 'غاز'].some(k => result.type?.toLowerCase().includes(k))) {
-      contacts.gas = emergencyContacts.gas;
+      if (['gas', 'غاز'].some((k) => result.type?.toLowerCase().includes(k))) {
+        contacts.gas = emergencyContacts.gas;
+      }
+      if (['fire', 'حريق', 'كهرباء', 'ماس', 'electrical'].some((k) => result.type?.toLowerCase().includes(k))) {
+        contacts.fire = emergencyContacts.fire;
+      }
+
+      return {
+        ...result,
+        contacts,
+        tips: result.tips ?? [],   // pass dynamic tips to frontend
+      };
     }
-    if (['fire', 'حريق', 'كهرباء', 'ماس'].some(k => result.type?.toLowerCase().includes(k))) {
-      contacts.fire = emergencyContacts.fire;
-    }
 
-    return { ...result, contacts };
+    return result;
   }
-
-  return result;
-}
 }
