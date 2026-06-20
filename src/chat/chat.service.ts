@@ -409,8 +409,18 @@ Reply with ONLY a JSON object: {"flagged": true/false, "reason": "short reason o
   async getUnreadCount(roomId: string, userId: string, role: UserRole) {
     // ⚠️ كانت متثبتة على UserRole.CLIENT دايمًا — كانت بترفض الفنيين.
     // دلوقتي بتاخد الـ role الحقيقي بتاع المستخدم اللي عامل الـ request.
-    const requestId = roomId.split('_')[1];
-    await this.validateRequestAccess(requestId, userId, role);
+    if (roomId.startsWith('custom_')) {
+      const [, postId, technicianId] = roomId.split('_');
+      await this.validateCustomRequestAccess(
+        postId,
+        technicianId,
+        userId,
+        role,
+      );
+    } else {
+      const requestId = roomId.split('_')[1];
+      await this.validateRequestAccess(requestId, userId, role);
+    }
 
     const count = await this.messageModel.countDocuments({
       roomId,

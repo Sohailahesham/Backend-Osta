@@ -13,22 +13,19 @@ import {
   TechnicianSchema,
 } from 'src/technician/schemas/technician.schema';
 import { NotificationModule } from 'src/notification/notification.module';
-import { Review, ReviewSchema } from 'src/reviews/schemas/review.schema';
-import { ReviewsModule } from 'src/reviews/reviews.module';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: MainRequest.name, schema: RequestSchema },
       { name: Technician.name, schema: TechnicianSchema },
-      { name: Review.name, schema: ReviewSchema },
+      
     ]),
     AuthModule, // provides JwtStrategy + PassportModule → enables AuthGuard('jwt')
     PaymentModule,
     InvoiceModule,
     ChatModule,
-    NotificationModule,
-    ReviewsModule,
+    NotificationModule
   ],
   controllers: [RequestController],
   providers: [RequestService],

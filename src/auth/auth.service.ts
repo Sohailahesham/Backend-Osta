@@ -2,8 +2,6 @@ import {
   BadRequestException,
   Injectable,
   UnauthorizedException,
-  ConflictException,
-  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -40,27 +38,28 @@ export class AuthService {
     private walletService: WalletService,
   ) {}
 
-  private async signTokens(user: UserDocument) {
-    const payload = { sub: user._id, email: user.email, role: user.role };
+  private getRefreshSecret() {
+    return process.env.JWT_REFRESH_SECRET || process.env.JWT_SECRET;
+  }
 
-    const access_token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_SECRET,
-      expiresIn: '1d',
-    });
+  private isClientProfileComplete(user: UserDocument) {
+    return Boolean(
+      user.fullName &&
+        user.email &&
+        user.phone &&
+        user.governorate &&
+        user.city &&
+        user.gender,
+    );
+  }
 
-    const refresh_token = this.jwtService.sign(payload, {
-      secret: process.env.JWT_REFRESH_SECRET,
-      expiresIn: '7d',
-    });
-
-    const hashed = await bcrypt.hash(refresh_token, 10);
-    await this.userModel.findByIdAndUpdate(user._id, { refreshToken: hashed });
-
+  private async buildAuthUser(user: UserDocument) {
     let technicianData: {
       currentStep: number;
       isProfileComplete: boolean;
       verificationStatus: string;
     } | null = null;
+
     if (user.role === UserRole.TECHNICIAN) {
       const technician = await this.technicianModel.findOne({
         userId: user._id,
@@ -73,16 +72,56 @@ export class AuthService {
     }
 
     return {
+      id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      provider: user.provider,
+      isVerified: user.isVerified,
+      profileComplete:
+        user.role === UserRole.CLIENT ? this.isClientProfileComplete(user) : true,
+      ...(technicianData && { technicianData }),
+    };
+  }
+
+  private async issueVerificationToken(userId: string) {
+    const token = randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    await this.userModel.findByIdAndUpdate(userId, {
+      verificationToken: token,
+      verificationTokenExpires: expires,
+    });
+
+    return token;
+  }
+
+  private async sendVerificationEmailToUser(user: UserDocument) {
+    if (user.isVerified) return;
+    const token = await this.issueVerificationToken(user._id.toString());
+    await this.mailService.sendVerificationEmail(user.email, token);
+  }
+
+  private async signTokens(user: UserDocument) {
+    const payload = { sub: user._id, email: user.email, role: user.role };
+
+    const access_token = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET,
+      expiresIn: '1d',
+    });
+
+    const refresh_token = this.jwtService.sign(payload, {
+      secret: this.getRefreshSecret(),
+      expiresIn: '7d',
+    });
+
+    const hashed = await bcrypt.hash(refresh_token, 10);
+    await this.userModel.findByIdAndUpdate(user._id, { refreshToken: hashed });
+
+    return {
       access_token,
       refresh_token,
-      user: {
-        id: user._id,
-        fullName: user.fullName,
-        email: user.email,
-        role: user.role,
-        isVerified: user.isVerified,
-        ...(technicianData && { technicianData }),
-      },
+      user: await this.buildAuthUser(user),
     };
   }
 
@@ -102,6 +141,8 @@ export class AuthService {
         city: dto.city,
         gender: dto.gender,
       });
+
+      await this.sendVerificationEmailToUser(user);
 
       return this.signTokens(user);
     } catch (error: any) {
@@ -131,6 +172,7 @@ export class AuthService {
 
       await this.technicianModel.create({ userId: user._id } as any);
       await this.walletService.createWallet(user._id.toString());
+      await this.sendVerificationEmailToUser(user);
       return this.signTokens(user);
     } catch (error: any) {
       if (error.code === 11000) {
@@ -157,7 +199,7 @@ export class AuthService {
   async refresh(refreshToken: string) {
     try {
       const payload = this.jwtService.verify(refreshToken, {
-        secret: process.env.JWT_REFRESH_SECRET,
+        secret: this.getRefreshSecret(),
       });
 
       const user = await this.userModel.findById(payload.sub);
@@ -200,6 +242,9 @@ export class AuthService {
     if (user) {
       user.googleId = data.googleId;
       user.provider = AuthProvider.GOOGLE;
+      user.isVerified = true;
+      user.verificationToken = undefined;
+      user.verificationTokenExpires = undefined;
       await user.save();
       return this.signTokens(user);
     }
@@ -210,6 +255,7 @@ export class AuthService {
       email: data.email,
       googleId: data.googleId,
       provider: AuthProvider.GOOGLE,
+      isVerified: true,
       role: UserRole.CLIENT,
     });
 
@@ -276,16 +322,18 @@ export class AuthService {
     if (!user) throw new NotFoundException('User not found');
     if (user.isVerified)
       throw new BadRequestException('Email already verified');
-    const token = randomBytes(32).toString('hex');
-    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-
-    await this.userModel.findByIdAndUpdate(user._id, {
-      verificationToken: token,
-      verificationTokenExpires: expires,
-    });
-
-    await this.mailService.sendVerificationEmail(user.email, token);
+    await this.sendVerificationEmailToUser(user);
     return { message: 'Verification email sent successfully' };
+  }
+
+  async getCurrentUser(userId: string) {
+    const user = await this.userModel.findById(userId);
+    if (!user) throw new NotFoundException('User not found');
+
+    return {
+      message: 'User fetched successfully',
+      data: await this.buildAuthUser(user),
+    };
   }
 
   async verifyEmail(token: string) {

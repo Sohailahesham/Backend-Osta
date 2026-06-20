@@ -14,6 +14,7 @@ import {
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { WalletModule } from '../wallet/wallet.module';
+import { VerifiedEmailGuard } from './guards/verified-email.guard';
 
 @Module({
   imports: [
@@ -34,7 +35,7 @@ import { WalletModule } from '../wallet/wallet.module';
     MailModule,
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, GoogleStrategy],
-  exports: [JwtStrategy, PassportModule],
+  providers: [AuthService, JwtStrategy, GoogleStrategy, VerifiedEmailGuard],
+  exports: [JwtStrategy, PassportModule, VerifiedEmailGuard],
 })
 export class AuthModule {}

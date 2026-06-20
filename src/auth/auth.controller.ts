@@ -191,6 +191,19 @@ export class AuthController {
   }
 
   @ApiOperation({
+    summary: 'Get current authenticated user',
+    description: 'Returns the currently authenticated user and verification state.',
+  })
+  @ApiBearerAuth('JWT')
+  @ApiResponse({ status: 200, description: 'Current user fetched successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @Get('me')
+  @UseGuards(AuthGuard('jwt'))
+  me(@Req() req) {
+    return this.authService.getCurrentUser(req.user.userId);
+  }
+
+  @ApiOperation({
     summary: 'Request password reset via OTP',
     description: 'Send OTP code to registered email for password reset.',
   })
