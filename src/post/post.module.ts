@@ -10,6 +10,7 @@ import {
   Technician,
   TechnicianSchema,
 } from 'src/technician/schemas/technician.schema';
+import { NotificationModule } from 'src/notification/notification.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import {
       { name: Technician.name, schema: TechnicianSchema },
     ]),
     ChatModule,
+    NotificationModule
   ],
   controllers: [PostController],
   providers: [PostService],

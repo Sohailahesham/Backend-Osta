@@ -25,6 +25,11 @@ import {
   TechnicianDocument,
 } from 'src/technician/schemas/technician.schema';
 
+// ── NOTIFICATION IMPORTS ──────────────────────────────────────────────────────
+import { NotificationService } from 'src/notification/notification.service';
+import { NotificationType } from 'src/notification/enums/notification-type.enum';
+// ─────────────────────────────────────────────────────────────────────────────
+
 @Injectable()
 export class PostService {
   constructor(
@@ -34,6 +39,9 @@ export class PostService {
     @InjectModel(Technician.name)
     private technicianModel: Model<TechnicianDocument>,
     private readonly chatGateway: ChatGateway,
+    // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
+    private readonly notificationService: NotificationService,
+    // ─────────────────────────────────────────────────────────────────────────
   ) {}
 
   // ─── Create Post (CLIENT) ─────────────────────────────────────────────────
@@ -56,14 +64,14 @@ export class PostService {
   async findAllOpen(page = 1, limit = 10) {
     const [data, total] = await Promise.all([
       this.postModel
-      .find({ status: PostStatus.OPEN })
-      .populate('userId', 'fullName')
-      .populate('categoryId', 'name')
-      .sort({ isEmergency: -1, createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean()
-      .exec(),
+        .find({ status: PostStatus.OPEN })
+        .populate('userId', 'fullName')
+        .populate('categoryId', 'name')
+        .sort({ isEmergency: -1, createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+        .exec(),
       this.postModel.countDocuments({ status: PostStatus.OPEN }),
     ]);
 
@@ -73,11 +81,11 @@ export class PostService {
   // ─── Get Post By Id ───────────────────────────────────────────────────────
   async findById(postId: string): Promise<PostDocument> {
     const post = await this.postModel
-    .findById(postId)
-    .populate('userId', 'fullName phone')
-    .populate('categoryId', 'name')
-    .populate('acceptedProposal')
-    .exec();
+      .findById(postId)
+      .populate('userId', 'fullName phone')
+      .populate('categoryId', 'name')
+      .populate('acceptedProposal')
+      .exec();
 
     if (!post) throw new NotFoundException('Post not found');
     return post;
@@ -87,13 +95,13 @@ export class PostService {
   async findMyPosts(userId: string, page = 1, limit = 10) {
     const [data, total] = await Promise.all([
       this.postModel
-      .find({ userId: new Types.ObjectId(userId) })
-      .populate('categoryId', 'name')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean()
-      .exec(),
+        .find({ userId: new Types.ObjectId(userId) })
+        .populate('categoryId', 'name')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+        .exec(),
       this.postModel.countDocuments({ userId: new Types.ObjectId(userId) }),
     ]);
 
@@ -101,11 +109,16 @@ export class PostService {
   }
 
   // ─── Submit Proposal (TECHNICIAN) ─────────────────────────────────────────
+  // NOTIFICATION → client receives alert that a new proposal arrived on their post
   async submitProposal(
     postId: string,
     technicianId: string,
     dto: CreateProposalDto,
   ): Promise<ProposalDocument> {
+    // NOTE: do NOT .populate('userId', ...) here — we need post.userId to stay
+    // a raw ObjectId so it can be safely converted to a string for the
+    // notification recipientId. Populating it turns it into a Document and
+    // .toString() on that does not return a valid ObjectId hex string.
     const post = await this.postModel.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
 
@@ -133,12 +146,36 @@ export class PostService {
     if (existing)
       throw new BadRequestException('You already submitted a proposal');
 
-    return this.proposalModel.create({
+    const proposal = await this.proposalModel.create({
       ...dto,
       postId: new Types.ObjectId(postId),
       technicianId: new Types.ObjectId(technicianId),
       status: ProposalStatus.PENDING,
     });
+
+    // ── NOTIFICATION: tell the client a new proposal has arrived ─────────────
+    try {
+      await this.notificationService.send({
+        recipientId: post.userId.toString(),
+        type: NotificationType.NEW_PROPOSAL,
+        title: 'عرض جديد على طلبك 📋',
+        body: `قدّم أحد الفنيين عرضاً جديداً على طلبك. السعر المقترح: ${dto.price} ج.م.`,
+        requestId: postId,          // reusing requestId field to carry postId for frontend routing
+        metadata: {
+          postId,
+          proposalId: (proposal._id as Types.ObjectId).toString(),
+          technicianId,
+          price: dto.price,
+          estimatedTime: dto.estimatedTime,
+        },
+      });
+    } catch (err) {
+      // Never let a notification failure break proposal creation itself
+      console.error('[submitProposal] Failed to send NEW_PROPOSAL notification:', err);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    return proposal;
   }
 
   // ─── Get Proposals (CLIENT) ───────────────────────────────────────────────
@@ -150,17 +187,19 @@ export class PostService {
       throw new ForbiddenException('Not authorized');
 
     return this.proposalModel
-    .find({ postId: new Types.ObjectId(postId) })
-    .populate(
-      'technicianId',
-      'fullName averageRating totalReviews yearsOfExperience specialization verificationStatus',
-    )
-    .sort({ createdAt: -1 })
-    .lean()
-    .exec();
+      .find({ postId: new Types.ObjectId(postId) })
+      .populate(
+        'technicianId',
+        'fullName averageRating totalReviews yearsOfExperience specialization verificationStatus',
+      )
+      .sort({ createdAt: -1 })
+      .lean()
+      .exec();
   }
 
   // ─── Accept Proposal (CLIENT) ─────────────────────────────────────────────
+  // NOTIFICATION → accepted technician gets congratulated
+  // NOTIFICATION → all rejected technicians get notified too
   async acceptProposal(postId: string, proposalId: string, userId: string) {
     const post = await this.postModel.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
@@ -216,6 +255,48 @@ export class PostService {
       requestId: request._id,
     });
 
+    // ── NOTIFICATION: tell the accepted technician their proposal won ─────────
+    try {
+      await this.notificationService.send({
+        recipientId: proposal.technicianId.toString(),
+        type: NotificationType.PROPOSAL_ACCEPTED,
+        title: 'تم قبول عرضك 🎉',
+        body: `قبل العميل عرضك. يرجى انتظار دفع العربون للمتابعة.`,
+        requestId: request._id.toString(),
+        metadata: {
+          postId,
+          proposalId,
+          requestId: request._id.toString(),
+          price: proposal.price,
+        },
+      });
+    } catch (err) {
+      console.error('[acceptProposal] Failed to send PROPOSAL_ACCEPTED notification:', err);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
+    // ── NOTIFICATION: tell all rejected technicians their proposals were declined
+    try {
+      await Promise.all(
+        rejectedProposals.map((rejectedProposal) =>
+          this.notificationService.send({
+            recipientId: rejectedProposal.technicianId.toString(),
+            type: NotificationType.PROPOSAL_REJECTED,
+            title: 'لم يتم قبول عرضك ❌',
+            body: 'اختار العميل عرضاً آخر. شكراً لمشاركتك.',
+            requestId: postId,
+            metadata: {
+              postId,
+              proposalId: (rejectedProposal._id as Types.ObjectId).toString(),
+            },
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error('[acceptProposal] Failed to send PROPOSAL_REJECTED notification(s):', err);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     return {
       data: request,
       message: 'accepted so the next step is paying the deposit ',
@@ -223,6 +304,7 @@ export class PostService {
   }
 
   // ─── Cancel Post (CLIENT) ─────────────────────────────────────────────────
+  // NOTIFICATION → all pending technicians notified that the post was cancelled
   async cancelPost(postId: string, userId: string) {
     const post = await this.postModel.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
@@ -242,6 +324,18 @@ export class PostService {
       }
     }
 
+    // Fetch all pending proposals BEFORE rejecting them, so we know who to notify
+    const pendingProposals = await this.proposalModel.find({
+      postId: new Types.ObjectId(postId),
+      status: ProposalStatus.PENDING,
+    });
+
+    // Debug: if this logs 0, it means either no one proposed yet, or the
+    // proposals were already moved out of PENDING status before cancellation.
+    console.log(
+      `[cancelPost] postId=${postId} → found ${pendingProposals.length} pending proposal(s) to notify`,
+    );
+
     await this.proposalModel.updateMany(
       { postId: new Types.ObjectId(postId) },
       { status: ProposalStatus.REJECTED },
@@ -254,6 +348,28 @@ export class PostService {
     if (post.requestId) {
       this.chatGateway.closeRoom(post.requestId.toString());
     }
+
+    // ── NOTIFICATION: tell all technicians who proposed that the post is cancelled
+    try {
+      await Promise.all(
+        pendingProposals.map((proposal) =>
+          this.notificationService.send({
+            recipientId: proposal.technicianId.toString(),
+            type: NotificationType.POST_CANCELLED,
+            title: 'تم إلغاء الطلب ❌',
+            body: 'قام العميل بإلغاء الطلب الذي قدّمت عليه عرضاً.',
+            requestId: postId,
+            metadata: {
+              postId,
+              proposalId: (proposal._id as Types.ObjectId).toString(),
+            },
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error('[cancelPost] Failed to send POST_CANCELLED notification(s):', err);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     return { message: 'Post cancelled successfully' };
   }

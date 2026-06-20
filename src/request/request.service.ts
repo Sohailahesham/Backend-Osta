@@ -21,9 +21,13 @@ import {
   Technician,
   TechnicianDocument,
 } from 'src/technician/schemas/technician.schema';
-import { Request } from 'express';
 import { AuthRequest } from 'src/common/interfaces/auth-request.interface';
 import { CompleteRequestDto } from './dto/complete-request.dto';
+
+// ── NOTIFICATION IMPORTS ──────────────────────────────────────────────────────
+import { NotificationService } from 'src/notification/notification.service';
+import { NotificationType } from 'src/notification/enums/notification-type.enum';
+// ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
 export class RequestService {
@@ -35,7 +39,27 @@ export class RequestService {
     private readonly chatGateway: ChatGateway,
     @InjectModel(Technician.name)
     private readonly technicianModel: Model<TechnicianDocument>,
+    // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
+    private readonly notificationService: NotificationService,
+    // ─────────────────────────────────────────────────────────────────────────
   ) {}
+
+  // ─── helpers ──────────────────────────────────────────────────────────────
+
+  
+  private getClientId(request: RequestDocument): string {
+    const u = request.userId as any;
+    return u?._id?.toString() ?? u?.toString();
+  }
+
+
+  private getAssignedId(request: RequestDocument): string | null {
+    const assigned = request.assignedTechnician as any;
+    if (!assigned) return null;
+    return assigned._id?.toString() ?? assigned.toString();
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
 
   async create(
     userId: string,
@@ -69,26 +93,22 @@ export class RequestService {
       filter.categoryId = new Types.ObjectId(
         technician.specialization.categoryId,
       );
+
     const [data, total] = await Promise.all([
       this.requestModel
-      .find(filter)
-      .populate('userId', 'fullName governorate city')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name description priceRange')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec(),
+        .find(filter)
+        .populate('userId', 'fullName governorate city')
+        .populate('categoryId', 'name')
+        .populate('serviceId', 'name description priceRange')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
       data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -97,27 +117,23 @@ export class RequestService {
     const filter: Record<string, unknown> = {};
     if (status) filter.status = status;
     if (categoryId) filter.categoryId = new Types.ObjectId(categoryId);
+
     const [data, total] = await Promise.all([
       this.requestModel
-      .find(filter)
-      .populate('userId', 'fullName email')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name')
-      .populate('assignedTechnician', 'fullName phone')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec(),
+        .find(filter)
+        .populate('userId', 'fullName email')
+        .populate('categoryId', 'name')
+        .populate('serviceId', 'name')
+        .populate('assignedTechnician', 'fullName phone')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
       data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -127,29 +143,29 @@ export class RequestService {
       userId: new Types.ObjectId(userId),
     };
     if (status) filter.status = status;
+
     const [data, total] = await Promise.all([
       this.requestModel
-      .find(filter)
-      .populate('categoryId', 'name ')
-      .populate('serviceId', 'name priceRange')
-      .populate('assignedTechnician', 'fullName phone')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .lean()
-      .exec(),
+        .find(filter)
+        .populate('categoryId', 'name ')
+        .populate('serviceId', 'name priceRange')
+        .populate('assignedTechnician', 'fullName phone')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .lean()
+        .exec(),
       this.requestModel.countDocuments(filter),
     ]);
 
-    // جيب بيانات الفني لكل request عنده assignedTechnician
     const enrichedData = await Promise.all(
       data.map(async (request) => {
         if (!request.assignedTechnician) return request;
 
         const technician = await this.technicianModel
-        .findOne({ userId: (request.assignedTechnician as any)._id })
-        .select('averageRating yearsOfExperience')
-        .lean();
+          .findOne({ userId: (request.assignedTechnician as any)._id })
+          .select('averageRating yearsOfExperience')
+          .lean();
 
         return {
           ...request,
@@ -164,12 +180,7 @@ export class RequestService {
 
     return {
       data: enrichedData,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -179,57 +190,50 @@ export class RequestService {
       assignedTechnician: new Types.ObjectId(technicianId),
     };
     if (status) filter.status = status;
+
     const [data, total] = await Promise.all([
       this.requestModel
-      .find(filter)
-      .populate('userId', 'fullName governorate city')
-      .populate('serviceId', 'name priceRange')
-      .populate({
-        path: 'postId',
-        select: 'budget acceptedProposal title',
-        populate: {
-          path: 'acceptedProposal',
-          select: 'estimatedTime price',
-        },
-      })
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec(),
+        .find(filter)
+        .populate('userId', 'fullName governorate city')
+        .populate('serviceId', 'name priceRange')
+        .populate({
+          path: 'postId',
+          select: 'budget acceptedProposal title',
+          populate: { path: 'acceptedProposal', select: 'estimatedTime price' },
+        })
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
       data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
   async findById(requestId: string): Promise<RequestDocument> {
     if (!Types.ObjectId.isValid(requestId))
       throw new NotFoundException('Request not found');
+
     const request = await this.requestModel
-    .findById(requestId)
-    .populate('userId', 'fullName email ')
-    .populate('categoryId', 'name')
-    .populate('serviceId', 'name priceRange')
-    .populate('assignedTechnician', 'fullName')
-    .exec();
+      .findById(requestId)
+      .populate('userId', 'fullName email ')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name priceRange')
+      .populate('assignedTechnician', 'fullName')
+      .exec();
+
     if (!request)
       throw new NotFoundException(`Request #${requestId} not found`);
     return request;
   }
 
-  private getAssignedId(request: RequestDocument): string | null {
-    const assigned = request.assignedTechnician as any;
-    if (!assigned) return null;
-    return assigned._id?.toString() ?? assigned.toString();
-  }
-
+  // ─────────────────────────────────────────────────────────────────────────
+  //  acceptRequest
+  //  Notify CLIENT: their request was accepted by a technician
+  // ─────────────────────────────────────────────────────────────────────────
   async acceptRequest(requestId: string, technicianId: string) {
     const request = await this.findById(requestId);
     if (request.status !== RequestStatus.PENDING)
@@ -252,6 +256,20 @@ export class RequestService {
     request.status = RequestStatus.ACCEPTED;
     await request.save();
 
+    // ── NOTIFICATION: tell the client their request has been accepted ─────────
+    await this.notificationService.send({
+      recipientId: this.getClientId(request),
+      type: NotificationType.REQUEST_ACCEPTED,
+      title: 'تم قبول طلبك ✅',
+      body: `تم قبول طلبك بنجاح. يرجى دفع العربون (${request.depositAmount} ج.م) للمتابعة.`,
+      requestId,
+      metadata: {
+        depositAmount: request.depositAmount,
+        technicianId,
+      },
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
     return {
       message:
         'Request accepted successfully. Please pay the deposit to proceed.',
@@ -260,6 +278,35 @@ export class RequestService {
     };
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  //  notifyDepositPaid  (called by PaymentService after successful payment)
+  //  → Notify TECHNICIAN: the client has paid the deposit
+  // ─────────────────────────────────────────────────────────────────────────
+  async notifyDepositPaid(requestId: string): Promise<void> {
+    const request = await this.findById(requestId);
+    const technicianId = this.getAssignedId(request);
+
+    if (!technicianId) return; // safety guard – should never happen
+
+    // ── NOTIFICATION: tell the technician the deposit has been received ───────
+    await this.notificationService.send({
+      recipientId: technicianId,
+      type: NotificationType.DEPOSIT_PAID,
+      title: 'تم دفع العربون 💰',
+      body: 'قام العميل بدفع العربون. يمكنك الآن التوجه لإنجاز الطلب.',
+      requestId,
+      metadata: {
+        depositAmount: request.depositAmount,
+        clientId: this.getClientId(request),
+      },
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  onTheWay
+  //  → Notify CLIENT: technician is on the way
+  // ─────────────────────────────────────────────────────────────────────────
   async onTheWay(
     requestId: string,
     technicianId: string,
@@ -278,9 +325,26 @@ export class RequestService {
       );
 
     request.status = RequestStatus.ON_THE_WAY;
-    return request.save();
+    const savedRequest = await request.save();
+
+    // ── NOTIFICATION: technician is on the way ───────────────────────────────
+    await this.notificationService.send({
+      recipientId: this.getClientId(request),
+      type: NotificationType.REQUEST_ON_THE_WAY,
+      title: 'الفني في الطريق إليك 🚗',
+      body: 'الفني في طريقه إليك الآن. يرجى الاستعداد لاستقباله.',
+      requestId,
+      metadata: { technicianId },
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
+    return savedRequest;
   }
 
+  // ─────────────────────────────────────────────────────────────────────────
+  //  startRequest
+  //  → Notify CLIENT: work has started
+  // ─────────────────────────────────────────────────────────────────────────
   async startRequest(
     requestId: string,
     technicianId: string,
@@ -297,47 +361,85 @@ export class RequestService {
       throw new BadRequestException('Technician must be on the way first');
 
     request.status = RequestStatus.STARTED;
-    return request.save();
+    const savedRequest = await request.save();
+
+    // ── NOTIFICATION: work has started ───────────────────────────────────────
+    await this.notificationService.send({
+      recipientId: this.getClientId(request),
+      type: NotificationType.REQUEST_STARTED,
+      title: 'بدأ الفني العمل 🔧',
+      body: 'بدأ الفني في تنفيذ الطلب. سيتم إشعارك عند الانتهاء.',
+      requestId,
+      metadata: { technicianId },
+    });
+    // ─────────────────────────────────────────────────────────────────────────
+
+    return savedRequest;
   }
 
-async completeRequest(
-  requestId: string,
-  technicianId: string,
-  completeRequestDto: CompleteRequestDto,
-): Promise<RequestDocument> {
-  const request = await this.findById(requestId);
-  const assignedId = this.getAssignedId(request);
+  // ─────────────────────────────────────────────────────────────────────────
+  //  completeRequest
+  //  → Notify CLIENT: request is complete with total price
+  // ─────────────────────────────────────────────────────────────────────────
+  async completeRequest(
+    requestId: string,
+    technicianId: string,
+    completeRequestDto: CompleteRequestDto,
+  ): Promise<RequestDocument> {
+    const request = await this.findById(requestId);
+    const assignedId = this.getAssignedId(request);
 
-  if (!assignedId)
-    throw new BadRequestException('No technician assigned to this request');
+    if (!assignedId)
+      throw new BadRequestException('No technician assigned to this request');
 
-  if (assignedId !== technicianId)
-    throw new ForbiddenException(
-      'You can only complete your assigned requests',
-    );
+    if (assignedId !== technicianId)
+      throw new ForbiddenException(
+        'You can only complete your assigned requests',
+      );
 
-  if (request.status !== RequestStatus.STARTED)
-    throw new BadRequestException('Only started requests can be completed');
+    if (request.status !== RequestStatus.STARTED)
+      throw new BadRequestException('Only started requests can be completed');
 
-  const {
-    servicePrice,
-    extraMaterialsPrice = 0,
-    completionNote,
-  } = completeRequestDto;
+    const {
+      servicePrice,
+      extraMaterialsPrice = 0,
+      completionNote,
+    } = completeRequestDto;
 
-  request.status = RequestStatus.COMPLETED;
-  request.servicePrice = servicePrice;
-  request.extraMaterialsPrice = extraMaterialsPrice;
-  request.totalPrice = servicePrice + extraMaterialsPrice;
-  request.completionNote = completionNote || null; 
+    request.status = RequestStatus.COMPLETED;
+    request.servicePrice = servicePrice;
+    request.extraMaterialsPrice = extraMaterialsPrice;
+    request.totalPrice = servicePrice + extraMaterialsPrice;
+    request.completionNote = completionNote || null;
 
-  const savedRequest = await request.save();
+    const savedRequest = await request.save();
 
-  this.chatGateway.closeRoom(requestId);
+    this.chatGateway.closeRoom(requestId);
 
-  return savedRequest;
-}
+    // ── NOTIFICATION: job done, show the client the final amount ─────────────
+    await this.notificationService.send({
+      recipientId: this.getClientId(request),
+      type: NotificationType.REQUEST_COMPLETED,
+      title: 'اكتمل الطلب 🎉',
+      body: `تم إنجاز طلبك بنجاح. إجمالي المبلغ المستحق: ${request.totalPrice} ج.م.`,
+      requestId,
+      metadata: {
+        servicePrice,
+        extraMaterialsPrice,
+        totalPrice: request.totalPrice,
+        completionNote: request.completionNote,
+      },
+    });
+    // ─────────────────────────────────────────────────────────────────────────
 
+    return savedRequest;
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  //  cancel
+  //  → Notify CLIENT when technician/admin cancels
+  //  → Notify TECHNICIAN when client cancels
+  // ─────────────────────────────────────────────────────────────────────────
   async cancel(
     requestId: string,
     userId: string,
@@ -354,9 +456,7 @@ async completeRequest(
       throw new BadRequestException('Cannot cancel request at this stage');
 
     if (userRole === UserRole.CLIENT) {
-      const requestUserId =
-        (request.userId as any)?._id?.toString() ?? request.userId?.toString();
-
+      const requestUserId = this.getClientId(request);
       if (requestUserId !== userId)
         throw new ForbiddenException('You can only cancel your own requests');
     }
@@ -371,7 +471,7 @@ async completeRequest(
         );
     }
 
-    // ← الـ refund بيتعمل لأي حد يكنسل
+    // Refund deposit if already paid
     const payment = await this.paymentService.getDepositPayment(requestId);
     if (payment && payment.status === PaymentStatus.PAID) {
       await this.paymentService.refundDeposit(payment);
@@ -386,6 +486,37 @@ async completeRequest(
     };
     const savedRequest = await request.save();
     this.chatGateway.closeRoom(requestId);
+
+    // ── NOTIFICATION: cancellation alerts ────────────────────────────────────
+    const clientId    = this.getClientId(request);
+    const technicianId = this.getAssignedId(request);
+    const reasonText  = reason ? ` السبب: ${reason}` : '';
+
+    if (userRole === UserRole.CLIENT) {
+      // Client cancelled , notify the technician (if one was assigned)
+      if (technicianId) {
+        await this.notificationService.send({
+          recipientId: technicianId,
+          type: NotificationType.REQUEST_CANCELLED,
+          title: 'تم إلغاء الطلب ❌',
+          body: `قام العميل بإلغاء الطلب.${reasonText}`,
+          requestId,
+          metadata: { cancelledBy: userId, role: userRole, reason },
+        });
+      }
+    } else {
+      // Technician or Admin cancelled , notify the client
+      await this.notificationService.send({
+        recipientId: clientId,
+        type: NotificationType.REQUEST_CANCELLED,
+        title: 'تم إلغاء الطلب ❌',
+        body: `تم إلغاء طلبك.${reasonText}`,
+        requestId,
+        metadata: { cancelledBy: userId, role: userRole, reason },
+      });
+    }
+    // ─────────────────────────────────────────────────────────────────────────
+
     return savedRequest;
   }
 
@@ -415,26 +546,23 @@ async completeRequest(
       userId: new Types.ObjectId(userId),
     };
     if (status) filter.status = status;
+
     const [data, total] = await Promise.all([
       this.requestModel
-      .find(filter)
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name')
-      .populate('assignedTechnician', 'fullName')
-      .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
-      .limit(limit)
-      .exec(),
+        .find(filter)
+        .populate('categoryId', 'name')
+        .populate('serviceId', 'name')
+        .populate('assignedTechnician', 'fullName')
+        .sort({ createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
       data,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 }
+

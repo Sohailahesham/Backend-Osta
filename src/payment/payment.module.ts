@@ -11,6 +11,7 @@ import { Invoice, InvoiceSchema } from 'src/invoice/schemas/invoice.schema';
 import { InvoiceModule } from '../invoice/invoice.module';
 import { MailModule } from '../mail/mail.module';
 
+import { NotificationModule } from 'src/notification/notification.module';
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -21,6 +22,8 @@ import { MailModule } from '../mail/mail.module';
     ]),
     InvoiceModule,
     MailModule,
+    NotificationModule
+
   ],
   controllers: [PaymentController],
   providers: [PaymentService, PaymobService, PaymentScheduler],
