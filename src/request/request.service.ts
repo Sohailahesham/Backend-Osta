@@ -130,17 +130,40 @@ export class RequestService {
     const [data, total] = await Promise.all([
       this.requestModel
       .find(filter)
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name')
+      .populate('categoryId', 'name ')
+      .populate('serviceId', 'name priceRange')
       .populate('assignedTechnician', 'fullName phone')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
+      .lean()
       .exec(),
       this.requestModel.countDocuments(filter),
     ]);
+
+    // جيب بيانات الفني لكل request عنده assignedTechnician
+    const enrichedData = await Promise.all(
+      data.map(async (request) => {
+        if (!request.assignedTechnician) return request;
+
+        const technician = await this.technicianModel
+        .findOne({ userId: (request.assignedTechnician as any)._id })
+        .select('averageRating yearsOfExperience')
+        .lean();
+
+        return {
+          ...request,
+          assignedTechnician: {
+            ...(request.assignedTechnician as any),
+            averageRating: technician?.averageRating ?? 0,
+            yearsOfExperience: technician?.yearsOfExperience ?? 0,
+          },
+        };
+      }),
+    );
+
     return {
-      data,
+      data: enrichedData,
       meta: {
         total,
         page,
@@ -251,7 +274,7 @@ export class RequestService {
 
     if (request.status !== RequestStatus.IN_PROGRESS)
       throw new BadRequestException(
-        'Request must be in progress first so you must pay deposit first!',
+        'Request must be in progress first so Client must pay deposit first!',
       );
 
     request.status = RequestStatus.ON_THE_WAY;

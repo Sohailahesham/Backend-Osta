@@ -79,6 +79,7 @@ export class PaymentService {
         fullName: user.fullName,
         phone: user.phone ?? 'N/A',
       },
+      requestId,
     );
 
     await this.paymentModel.findByIdAndUpdate(payment._id, {
@@ -178,9 +179,10 @@ export class PaymentService {
     });
 
     const { paymentUrl, orderId } = await this.paymobService.getPaymentUrl(
-  remainingAmount,
-  { email: user.email, fullName: user.fullName, phone: user.phone ?? 'N/A' },
-);
+      remainingAmount,
+      { email: user.email, fullName: user.fullName, phone: user.phone ?? 'N/A' },
+      requestId,
+    );
     await this.paymentModel.findByIdAndUpdate(payment._id, {
       paymobOrderId: orderId,
     });
