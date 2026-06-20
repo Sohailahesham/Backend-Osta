@@ -30,6 +30,8 @@ import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/enums/notification-type.enum';
 // ─────────────────────────────────────────────────────────────────────────────
 
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
+
 @Injectable()
 export class PaymentService {
   constructor(
@@ -76,6 +78,7 @@ export class PaymentService {
       status: PaymentStatus.PENDING,
     });
 
+    //  بعد دفع العربون: رجّعيه لصفحة الأوردرز
     const { paymentUrl, orderId } = await this.paymobService.getPaymentUrl(
       request.depositAmount,
       {
@@ -83,7 +86,7 @@ export class PaymentService {
         fullName: user.fullName,
         phone: user.phone ?? 'N/A',
       },
-      requestId,
+      `${FRONTEND_URL}/client/orders`,
     );
 
     await this.paymentModel.findByIdAndUpdate(payment._id, {
@@ -234,12 +237,12 @@ export class PaymentService {
       status: PaymentStatus.PENDING,
     });
 
+    //  بعد دفع المتبقي: رجّعيه لصفحة التراكينج بتاعت نفس الطلب عشان يظهر فورم التقييم
     const { paymentUrl, orderId } = await this.paymobService.getPaymentUrl(
-          remainingAmount,
-          { email: user.email, fullName: user.fullName, phone: user.phone ?? 'N/A' },
-      requestId,
-        );
-
+      remainingAmount,
+      { email: user.email, fullName: user.fullName, phone: user.phone ?? 'N/A' },
+      `${FRONTEND_URL}/client/tracking/${requestId}`,
+    );
     await this.paymentModel.findByIdAndUpdate(payment._id, {
       paymobOrderId: orderId,
     });
