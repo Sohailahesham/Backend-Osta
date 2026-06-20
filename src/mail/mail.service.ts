@@ -1,17 +1,34 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
+import type { Transporter } from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
 
 @Injectable()
 export class MailService {
-  private transporter = nodemailer.createTransport({
-    service: 'gmail',
-    auth: {
-      user: process.env.MAIL_USER,
-      pass: process.env.MAIL_PASS,
-    },
-  });
+  private readonly logger = new Logger(MailService.name);
+  private transporter: Transporter;
+
+  constructor(private readonly configService: ConfigService) {
+    this.transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user: this.getEnvValue('MAIL_USER'),
+        pass: this.getEnvValue('MAIL_PASS'),
+      },
+    });
+  }
+
+  private getEnvValue(key: string): string {
+    const value = this.configService.get<string>(key) ?? process.env[key];
+
+    if (!value) {
+      throw new InternalServerErrorException(`${key} is not configured`);
+    }
+
+    return value.replace(/^"(.*)"$/, '$1').trim();
+  }
 
   private loadTemplate(
     templateName: string,
@@ -26,10 +43,14 @@ export class MailService {
   }
 
   async sendVerificationEmail(email: string, token: string) {
-    const link = `${process.env.APP_URL}/auth/verify-email?token=${token}`;
+    const backendUrl =
+      this.configService.get<string>('APP_URL') ||
+      this.configService.get<string>('BACKEND_URL') ||
+      `http://localhost:${this.configService.get<string>('PORT') || 3000}`;
+    const link = `${backendUrl}/auth/verify-email?token=${token}`;
 
     await this.transporter.sendMail({
-      from: `"Osta App" <${process.env.MAIL_USER}>`,
+      from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
       to: email,
       subject: 'تأكيد البريد الإلكتروني - أوسطا',
       html: `
@@ -96,7 +117,7 @@ export class MailService {
     });
 
     await this.transporter.sendMail({
-      from: `"Osta App" <${process.env.MAIL_USER}>`,
+      from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
       to: email,
       subject: 'رمز التحقق لإعادة تعيين كلمة المرور - أوسطا',
       html,
@@ -139,7 +160,7 @@ export class MailService {
     },
   ) {
     await this.transporter.sendMail({
-      from: `"Osta App" <${process.env.MAIL_USER}>`,
+      from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
       to: email,
       subject: `فاتورة ${data.invoiceNumber} - أوسطا`,
       html: `
@@ -225,17 +246,15 @@ export class MailService {
     });
   }
 
-
-
   async sendRefundEmail(
-  email: string,
-  data: { clientName: string; amount: number },
-) {
-  await this.transporter.sendMail({
-    from: `"Osta App" <${process.env.MAIL_USER}>`,
-    to: email,
-    subject: 'تم استرداد العربون - أوسطا',
-    html: `
+    email: string,
+    data: { clientName: string; amount: number },
+  ) {
+    await this.transporter.sendMail({
+    from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
+      to: email,
+      subject: 'تم استرداد العربون - أوسطا',
+      html: `
 <!doctype html>
 <html lang="ar" dir="rtl">
   <head>
@@ -275,6 +294,6 @@ export class MailService {
   </body>
 </html>
     `,
-  });
-}
+    });
+  }
 }
