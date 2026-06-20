@@ -12,6 +12,8 @@ import {
   RoomType,
   SenderRole,
 } from './schemas/message.schema';
+import { ProfanityFilterService } from './profanity-filter.service';
+import { toPublicUploadPath } from './chat-upload';
 import {
   MainRequest,
   RequestDocument,
@@ -72,6 +74,7 @@ export class ChatService {
 
     @InjectModel(Post.name)
     private postModel: Model<PostDocument>,
+    private readonly profanityFilter: ProfanityFilterService,
   ) {}
 
   // ── 1. Fixed Service Request Chat ─────────────────────────────────────────
@@ -200,6 +203,8 @@ export class ChatService {
    * لو مشبوهة → بيرجع true عشان الـ caller يعمل AI check async.
    */
   blockContent(content: string): { blocked: boolean; suspicious: boolean } {
+    this.profanityFilter.assertClean(content);
+
     for (const pattern of BLOCK_PATTERNS) {
       if (pattern.test(content)) {
         throw new BadRequestException(
@@ -265,26 +270,82 @@ Reply with ONLY a JSON object: {"flagged": true/false, "reason": "short reason o
     roomType: RoomType,
     senderId: string,
     senderRole: SenderRole,
-    content: string,
+    content?: string,
+    imageUrl?: string | null,
   ): Promise<MessageDocument> {
-    // 1. Regex block — بيرمي exception لو في حاجة ممنوعة
-    const { suspicious } = this.blockContent(content);
+    const normalizedContent = content?.trim() ?? '';
+    const publicImageUrl = toPublicUploadPath(imageUrl);
 
-    // 2. حفظ الرسالة
+    if (!normalizedContent && !publicImageUrl) {
+      throw new BadRequestException('Message cannot be empty.');
+    }
+
+    const { suspicious } = normalizedContent
+      ? this.blockContent(normalizedContent)
+      : { suspicious: false };
+
     const message = await this.messageModel.create({
       roomId,
       roomType,
       senderId: new Types.ObjectId(senderId),
       senderRole,
-      content,
+      content: normalizedContent,
+      imageUrl: publicImageUrl,
     });
 
-    // 3. AI moderation — async، مش blocking
-    if (suspicious) {
-      void this.moderateWithAI(message._id as Types.ObjectId, content);
+    if (suspicious && normalizedContent) {
+      void this.moderateWithAI(
+        message._id as Types.ObjectId,
+        normalizedContent,
+      );
     }
 
     return message;
+  }
+
+  getSenderRole(role: UserRole): SenderRole {
+    if (role === UserRole.CLIENT) return SenderRole.CLIENT;
+    if (role === UserRole.ADMIN) return SenderRole.ADMIN;
+    return SenderRole.TECHNICIAN;
+  }
+
+  async createRequestMessage(
+    requestId: string,
+    userId: string,
+    role: UserRole,
+    content?: string,
+    imageUrl?: string | null,
+  ) {
+    await this.validateRequestAccess(requestId, userId, role);
+
+    return this.saveMessage(
+      `room_${requestId}`,
+      RoomType.REQUEST,
+      userId,
+      this.getSenderRole(role),
+      content,
+      imageUrl,
+    );
+  }
+
+  async createCustomRequestMessage(
+    postId: string,
+    technicianId: string,
+    userId: string,
+    role: UserRole,
+    content?: string,
+    imageUrl?: string | null,
+  ) {
+    await this.validateCustomRequestAccess(postId, technicianId, userId, role);
+
+    return this.saveMessage(
+      `custom_${postId}_${technicianId}`,
+      RoomType.CUSTOM_REQUEST,
+      userId,
+      this.getSenderRole(role),
+      content,
+      imageUrl,
+    );
   }
 
   // ── Shared: Get Messages ───────────────────────────────────────────────────
@@ -345,15 +406,37 @@ Reply with ONLY a JSON object: {"flagged": true/false, "reason": "short reason o
 
   // ── Unread Count ───────────────────────────────────────────────────────────
 
-  async getUnreadCount(roomId: string, userId: string): Promise<number> {
+  async getUnreadCount(roomId: string, userId: string, role: UserRole) {
+    // ⚠️ كانت متثبتة على UserRole.CLIENT دايمًا — كانت بترفض الفنيين.
+    // دلوقتي بتاخد الـ role الحقيقي بتاع المستخدم اللي عامل الـ request.
     const requestId = roomId.split('_')[1];
-    await this.validateRequestAccess(requestId, userId, UserRole.CLIENT);
+    await this.validateRequestAccess(requestId, userId, role);
 
-    return await this.messageModel.countDocuments({
+    const count = await this.messageModel.countDocuments({
       roomId,
       senderId: { $ne: new Types.ObjectId(userId) },
       isRead: false,
     });
+
+    // آخر رسالة في الـ room — أي طرف بعتها (مش بس الرسايل غير المقروءة)
+    const lastMessage = await this.messageModel
+    .findOne({ roomId })
+    .sort({ createdAt: -1 })
+    .select('content imageUrl createdAt senderId senderRole')
+    .lean();
+
+    return {
+      count,
+      lastMessage: lastMessage
+        ? {
+            content: lastMessage.content,
+            imageUrl: lastMessage.imageUrl ?? null,
+            createdAt: lastMessage.createdAt,
+            senderId: lastMessage.senderId.toString(),
+            senderRole: lastMessage.senderRole,
+          }
+        : null,
+    };
   }
 
   async markAsRead(roomId: string, userId: string) {

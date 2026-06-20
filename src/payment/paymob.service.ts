@@ -17,6 +17,7 @@ export class PaymobService {
     amount: number,
     user: { email: string; fullName: string; phone: string },
     integrationIds: number[],
+    requestId: string,
   ): Promise<{ paymentUrl: string; orderId: string }> {
     const res = await axios.post(
       'https://accept.paymob.com/v1/intention/',
@@ -31,6 +32,8 @@ export class PaymobService {
           email: user.email,
           phone_number: user.phone ?? 'N/A',
         },
+        // redirection_url: `http://localhost:3001/client/tracking/${requestId}`,
+        redirection_url: `http://localhost:3001/client/orders`,
       },
       {
         headers: {
@@ -49,12 +52,18 @@ export class PaymobService {
   async getPaymentUrl(
     amount: number,
     user: { email: string; fullName: string; phone: string },
+    requestId: string,
   ): Promise<{ paymentUrl: string; orderId: string }> {
-    return this.createIntention(amount, user, [
-      parseInt(this.cardIntegrationId!),
-      parseInt(this.walletIntegrationId!),
-      parseInt(this.instapayIntegrationId!),
-    ]);
+    return this.createIntention(
+      amount,
+      user,
+      [
+        parseInt(this.cardIntegrationId!),
+        parseInt(this.walletIntegrationId!),
+        parseInt(this.instapayIntegrationId!),
+      ],
+      requestId,
+    );
   }
 
   // ─── Verify HMAC ──────────────────────────────────────────────────────────
@@ -95,24 +104,24 @@ export class PaymobService {
   }
 
   private async getAuthToken(): Promise<string> {
-  const res = await axios.post('https://accept.paymob.com/api/auth/tokens', {
-    api_key: process.env.PAYMOB_API_KEY,
-  });
-  return res.data.token;
-}
-
-async refundPayment(transactionId: string, amount: number): Promise<void> {
-  const res = await axios.post(
-    `https://accept.paymob.com/api/acceptance/void_refund/refund`, 
-    {
-      auth_token: await this.getAuthToken(),
-      transaction_id: transactionId,
-      amount_cents: amount * 100,
-    },
-  );
-
-  if (!res.data.success) {
-    throw new BadRequestException(res.data.message ?? 'Refund failed');
+    const res = await axios.post('https://accept.paymob.com/api/auth/tokens', {
+      api_key: process.env.PAYMOB_API_KEY,
+    });
+    return res.data.token;
   }
-}
+
+  async refundPayment(transactionId: string, amount: number): Promise<void> {
+    const res = await axios.post(
+      `https://accept.paymob.com/api/acceptance/void_refund/refund`,
+      {
+        auth_token: await this.getAuthToken(),
+        transaction_id: transactionId,
+        amount_cents: amount * 100,
+      },
+    );
+
+    if (!res.data.success) {
+      throw new BadRequestException(res.data.message ?? 'Refund failed');
+    }
+  }
 }

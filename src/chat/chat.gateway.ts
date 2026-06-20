@@ -17,6 +17,7 @@ import { RoomType, SenderRole } from './schemas/message.schema';
 import { UserRole } from 'src/users/schemas/user.schema';
 import { UsePipes, ValidationPipe } from '@nestjs/common';
 import { SendMessageDto } from './dto/send-message.dto';
+import { MessageDocument } from './schemas/message.schema';
 
 @WebSocketGateway({
   cors: {
@@ -97,6 +98,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const unreadCount = await this.chatService.getUnreadCount(
         roomId,
         user.userId,
+        user.role,
       );
       client.emit('joinedRoom', { roomId, unreadCount });
       client
@@ -126,30 +128,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         user.role,
       );
 
-      const roomId = `room_${data.requestId}`;
-      const senderRole =
-        user.role === UserRole.CLIENT
-          ? SenderRole.CLIENT
-          : SenderRole.TECHNICIAN;
-
-      const message = await this.chatService.saveMessage(
-        roomId,
-        RoomType.REQUEST,
+      const message = await this.chatService.createRequestMessage(
+        data.requestId,
         user.userId,
-        senderRole,
+        user.role,
         data.content.trim(),
       );
 
-      this.server.to(roomId).emit('newMessage', {
-        _id: message._id,
-        roomId,
-        roomType: RoomType.REQUEST,
-        senderId: user.userId,
-        senderRole,
-        content: message.content,
-        isRead: false,
-        createdAt: message.createdAt,
-      });
+      this.broadcastRequestMessage(data.requestId, message, user.userId);
     } catch (error) {
       // لو الـ error من blockContent → بنبعت الـ message للـ client بس
       client.emit('error', { message: error.message });
@@ -209,6 +195,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       const unreadCount = await this.chatService.getUnreadCount(
         roomId,
         user.userId,
+        user.role,
       );
       client.emit('joinedCustomRoom', { roomId, unreadCount });
       client
@@ -254,30 +241,20 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         user.role,
       );
 
-      const roomId = `custom_${data.postId}_${technicianId}`;
-      const senderRole =
-        user.role === UserRole.CLIENT
-          ? SenderRole.CLIENT
-          : SenderRole.TECHNICIAN;
-
-      const message = await this.chatService.saveMessage(
-        roomId,
-        RoomType.CUSTOM_REQUEST,
+      const message = await this.chatService.createCustomRequestMessage(
+        data.postId,
+        technicianId,
         user.userId,
-        senderRole,
+        user.role,
         data.content.trim(),
       );
 
-      this.server.to(roomId).emit('newCustomMessage', {
-        _id: message._id,
-        roomId,
-        roomType: RoomType.CUSTOM_REQUEST,
-        senderId: user.userId,
-        senderRole,
-        content: message.content,
-        isRead: false,
-        createdAt: message.createdAt,
-      });
+      this.broadcastCustomMessage(
+        data.postId,
+        technicianId,
+        message,
+        user.userId,
+      );
     } catch (error) {
       client.emit('error', { message: error.message });
     }
@@ -482,5 +459,49 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
       this.server.in(roomId).socketsLeave(roomId);
     }
+  }
+
+  private toRealtimeMessage(
+    message: MessageDocument,
+    roomId: string,
+    senderId: string,
+  ) {
+    return {
+      _id: message._id,
+      roomId,
+      roomType: message.roomType,
+      senderId,
+      senderRole: message.senderRole,
+      content: message.content,
+      imageUrl: message.imageUrl ?? null,
+      isRead: false,
+      createdAt: message.createdAt,
+    };
+  }
+
+  broadcastRequestMessage(
+    requestId: string,
+    message: MessageDocument,
+    senderId: string,
+  ) {
+    const roomId = `room_${requestId}`;
+    this.server
+    .to(roomId)
+    .emit('newMessage', this.toRealtimeMessage(message, roomId, senderId));
+  }
+
+  broadcastCustomMessage(
+    postId: string,
+    technicianId: string,
+    message: MessageDocument,
+    senderId: string,
+  ) {
+    const roomId = `custom_${postId}_${technicianId}`;
+    this.server
+    .to(roomId)
+    .emit(
+      'newCustomMessage',
+      this.toRealtimeMessage(message, roomId, senderId),
+    );
   }
 }

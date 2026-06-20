@@ -5,16 +5,18 @@ import { JsonResponseParser } from 'src/common/parsers/json-response.parser';
 import { AiResponseValidator } from 'src/common/validators/ai-response.validator';
 import { AiException } from 'src/common/exceptions/ai.exception';
 
+export type ConversationHistory = Array<{ role: 'user' | 'assistant'; content: string }>;
+
 @Injectable()
 export class AiOrchestratorService {
   constructor(
     private readonly groq: GroqProvider,
-    private readonly openai: OpenAiProvider,
+    private readonly groqFallback: OpenAiProvider, // second Groq model
   ) {}
 
-  async classify(prompt: string) {
+  async classify(prompt: string, history: ConversationHistory = []) {
     try {
-      const response = await this.groq.ask(prompt);
+      const response = await this.groq.ask(prompt, history);
       const parsed = JsonResponseParser.parse(response);
 
       if (!AiResponseValidator.classification(parsed)) {
@@ -23,25 +25,24 @@ export class AiOrchestratorService {
 
       return parsed;
     } catch (err) {
-      console.error('[AiOrchestrator] classify Groq failed, trying OpenAI fallback:', err);
-      return this.classifyFallback(prompt);
+      console.error('[AiOrchestrator] classify primary failed, trying fallback:', err);
+      return this.classifyFallback(prompt, history);
     }
   }
 
-  async classifyFallback(prompt: string) {
+  async classifyFallback(prompt: string, history: ConversationHistory = []) {
     try {
-      const response = await this.openai.ask(prompt);
+      const response = await this.groqFallback.ask(prompt, history);
       return JsonResponseParser.parse(response);
     } catch (err) {
-      console.error('[AiOrchestrator] classifyFallback OpenAI failed:', err);
+      console.error('[AiOrchestrator] classifyFallback also failed:', err);
       throw new AiException('Classification Failed');
     }
   }
 
-  async emergency(prompt: string) {
-    // Try Groq first (faster), fall back to OpenAI
+  async emergency(prompt: string, history: ConversationHistory = []) {
     try {
-      const response = await this.groq.ask(prompt);
+      const response = await this.groq.ask(prompt, history);
       const parsed = JsonResponseParser.parse(response);
 
       if (!AiResponseValidator.emergency(parsed)) {
@@ -50,30 +51,30 @@ export class AiOrchestratorService {
 
       return parsed;
     } catch (err) {
-      console.error('[AiOrchestrator] emergency Groq failed, trying OpenAI fallback:', err);
+      console.error('[AiOrchestrator] emergency primary failed, trying fallback:', err);
     }
 
     try {
-      const response = await this.openai.ask(prompt);
+      const response = await this.groqFallback.ask(prompt, history);
       const parsed = JsonResponseParser.parse(response);
 
       if (!AiResponseValidator.emergency(parsed)) {
-        throw new Error('Invalid emergency shape from OpenAI');
+        throw new Error('Invalid emergency shape from fallback');
       }
 
       return parsed;
     } catch (err) {
-      console.error('[AiOrchestrator] emergency OpenAI also failed:', err);
+      console.error('[AiOrchestrator] emergency fallback also failed:', err);
       throw new AiException('Emergency Detection Failed');
     }
   }
 
-  async generateExplanation(prompt: string) {
+  async chat(prompt: string, history: ConversationHistory = []) {
     try {
-      return await this.openai.ask(prompt);
+      return await this.groq.ask(prompt, history);
     } catch (err) {
-      console.error('[AiOrchestrator] generateExplanation failed:', err);
-      return await this.groq.ask(prompt);
+      console.error('[AiOrchestrator] chat primary failed, trying fallback:', err);
+      return await this.groqFallback.ask(prompt, history);
     }
   }
 }

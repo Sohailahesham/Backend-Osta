@@ -37,8 +37,11 @@ export class Message {
   senderRole: SenderRole;
 
   // ── Content ──────────────────────────────────────────────────────────────
-  @Prop({ required: true, trim: true, maxlength: 1000 })
+  @Prop({ default: '', trim: true, maxlength: 1000 })
   content: string;
+
+  @Prop({ type: String, default: null })
+  imageUrl: string | null;
 
   @Prop({ default: false })
   isRead: boolean;
