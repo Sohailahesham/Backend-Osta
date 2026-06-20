@@ -27,6 +27,7 @@ import { CompleteRequestDto } from './dto/complete-request.dto';
 // ── NOTIFICATION IMPORTS ──────────────────────────────────────────────────────
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/enums/notification-type.enum';
+import { Review, ReviewDocument } from 'src/reviews/schemas/review.schema';
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -36,22 +37,21 @@ export class RequestService {
     private readonly requestModel: Model<RequestDocument>,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentService,
+    @InjectModel(Review.name)
+    private reviewModel: Model<ReviewDocument>,
     private readonly chatGateway: ChatGateway,
     @InjectModel(Technician.name)
     private readonly technicianModel: Model<TechnicianDocument>,
     // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
-    private readonly notificationService: NotificationService,
-    // ─────────────────────────────────────────────────────────────────────────
+    private readonly notificationService: NotificationService, // ─────────────────────────────────────────────────────────────────────────
   ) {}
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
-  
   private getClientId(request: RequestDocument): string {
     const u = request.userId as any;
     return u?._id?.toString() ?? u?.toString();
   }
-
 
   private getAssignedId(request: RequestDocument): string | null {
     const assigned = request.assignedTechnician as any;
@@ -96,14 +96,14 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName governorate city')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name description priceRange')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName governorate city')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name description priceRange')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -120,15 +120,15 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName email')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName email')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -146,35 +146,60 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name ')
-        .populate('serviceId', 'name priceRange')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name priceRange image') // ← أضيفي image
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
 
+    // اجمعي الـ requestIds اللي completed بس — query واحدة بدل ما تتكرر جوا الـ loop
+    const completedRequestIds = data
+    .filter((r) => r.status === RequestStatus.COMPLETED)
+    .map((r) => r._id);
+
+    const reviews = completedRequestIds.length
+      ? await this.reviewModel
+        .find({ requestId: { $in: completedRequestIds } })
+        .select('requestId rating comment')
+        .lean()
+      : [];
+
+    // map سريع للـ lookup
+    const reviewMap = new Map(reviews.map((r) => [r.requestId.toString(), r]));
+
     const enrichedData = await Promise.all(
       data.map(async (request) => {
-        if (!request.assignedTechnician) return request;
+        const result: Record<string, unknown> = { ...request };
 
-        const technician = await this.technicianModel
+        // الـ technician rating (موجود بالفعل)
+        if (request.assignedTechnician) {
+          const technician = await this.technicianModel
           .findOne({ userId: (request.assignedTechnician as any)._id })
           .select('averageRating yearsOfExperience')
           .lean();
 
-        return {
-          ...request,
-          assignedTechnician: {
+          result.assignedTechnician = {
             ...(request.assignedTechnician as any),
             averageRating: technician?.averageRating ?? 0,
             yearsOfExperience: technician?.yearsOfExperience ?? 0,
-          },
-        };
+          };
+        }
+
+        // الـ review بتاع الـ request ده (لو completed)
+        if (request.status === RequestStatus.COMPLETED) {
+          const review = reviewMap.get(request._id.toString());
+          result.review = review
+            ? { rating: review.rating, comment: review.comment }
+            : null;
+        }
+
+        return result;
       }),
     );
 
@@ -193,18 +218,18 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName governorate city')
-        .populate('serviceId', 'name priceRange')
-        .populate({
-          path: 'postId',
-          select: 'budget acceptedProposal title',
-          populate: { path: 'acceptedProposal', select: 'estimatedTime price' },
-        })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName governorate city')
+      .populate('serviceId', 'name priceRange')
+      .populate({
+        path: 'postId',
+        select: 'budget acceptedProposal title',
+        populate: { path: 'acceptedProposal', select: 'estimatedTime price' },
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -218,12 +243,12 @@ export class RequestService {
       throw new NotFoundException('Request not found');
 
     const request = await this.requestModel
-      .findById(requestId)
-      .populate('userId', 'fullName email ')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name priceRange')
-      .populate('assignedTechnician', 'fullName')
-      .exec();
+    .findById(requestId)
+    .populate('userId', 'fullName email ')
+    .populate('categoryId', 'name')
+    .populate('serviceId', 'name priceRange')
+    .populate('assignedTechnician', 'fullName')
+    .exec();
 
     if (!request)
       throw new NotFoundException(`Request #${requestId} not found`);
@@ -488,9 +513,9 @@ export class RequestService {
     this.chatGateway.closeRoom(requestId);
 
     // ── NOTIFICATION: cancellation alerts ────────────────────────────────────
-    const clientId    = this.getClientId(request);
+    const clientId = this.getClientId(request);
     const technicianId = this.getAssignedId(request);
-    const reasonText  = reason ? ` السبب: ${reason}` : '';
+    const reasonText = reason ? ` السبب: ${reason}` : '';
 
     if (userRole === UserRole.CLIENT) {
       // Client cancelled , notify the technician (if one was assigned)
@@ -549,14 +574,14 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -565,4 +590,3 @@ export class RequestService {
     };
   }
 }
-
