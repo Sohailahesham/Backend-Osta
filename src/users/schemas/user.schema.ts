@@ -36,7 +36,6 @@ export class User {
   @Prop({ unique: true, sparse: true, trim: true })
   phone: string;
 
-
   @Prop({ enum: Gender })
   gender: Gender;
 
@@ -80,6 +79,11 @@ export class User {
 
   @Prop()
   otpExpires?: Date;
+
+  // ========== PASSWORD CHANGE TRACKING ==========
+
+  @Prop()
+  passwordChangedAt?: Date;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -303,19 +303,50 @@ export class AuthService {
   }
 
   async resetPassword(dto: ResetPasswordDto) {
-    if (dto.newPassword !== dto.confirmPassword)
-      throw new BadRequestException('Passwords do not match');
+  if (dto.newPassword !== dto.confirmPassword)
+    throw new BadRequestException('Passwords do not match');
 
-    const user = await this.userModel.findOne({ email: dto.email });
-    if (!user) throw new NotFoundException('Email not found');
+  const user = await this.userModel.findOne({ email: dto.email });
+  if (!user) throw new NotFoundException('Email not found');
+
+  // ── Path A: logged-in user changing password with currentPassword ──
+  if (dto.currentPassword) {
+    if (!user.password)
+      throw new BadRequestException('No password set for this account');
+
+    const isMatch = await bcrypt.compare(dto.currentPassword, user.password);
+    if (!isMatch)
+      throw new BadRequestException('كلمة المرور الحالية غير صحيحة');
+
+    // Enforce 30-day cooldown
+    if (user.passwordChangedAt) {
+      const daysSince =
+        (Date.now() - new Date(user.passwordChangedAt).getTime()) /
+        (1000 * 60 * 60 * 24);
+      if (daysSince < 30) {
+        const daysLeft = Math.ceil(30 - daysSince);
+        throw new BadRequestException(
+          `يمكنك تغيير كلمة المرور مرة واحدة كل 30 يوماً. الأيام المتبقية: ${daysLeft}`,
+        );
+      }
+    }
+  } else {
+    // ── Path B: OTP-based reset (forget password flow) ──
     if (user.otp || user.otpExpires)
       throw new BadRequestException('Please verify OTP first');
-
-    const hashed = await bcrypt.hash(dto.newPassword, 10);
-    await this.userModel.findByIdAndUpdate(user._id, { password: hashed });
-
-    return { message: 'Password reset successfully', data: null };
   }
+
+  const hashed = await bcrypt.hash(dto.newPassword, 10);
+  await this.userModel.findByIdAndUpdate(user._id, {
+    password: hashed,
+    passwordChangedAt: new Date(),
+    // clear OTP fields in case this came from the forget-password flow
+    otp: null,
+    otpExpires: null,
+  });
+
+  return { message: 'Password reset successfully', data: null };
+}
 
   async sendVerificationEmail(userId: string) {
     const user = await this.userModel.findById(userId);
