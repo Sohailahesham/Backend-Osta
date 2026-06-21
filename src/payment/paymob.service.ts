@@ -18,6 +18,7 @@ export class PaymobService {
     user: { email: string; fullName: string; phone: string },
     integrationIds: number[],
     requestId: string,
+    redirectPath?: string, 
   ): Promise<{ paymentUrl: string; orderId: string }> {
     const res = await axios.post(
       'https://accept.paymob.com/v1/intention/',
@@ -33,7 +34,8 @@ export class PaymobService {
           phone_number: user.phone ?? 'N/A',
         },
         // redirection_url: `http://localhost:3001/client/tracking/${requestId}`,
-        redirection_url: `http://localhost:3001/client/orders`,
+        // redirection_url: `http://localhost:3001/client/orders`,
+        redirection_url: `http://localhost:3001${redirectPath ?? '/client/orders'}`,
       },
       {
         headers: {
@@ -53,6 +55,7 @@ export class PaymobService {
     amount: number,
     user: { email: string; fullName: string; phone: string },
     requestId: string,
+    redirectPath?: string,
   ): Promise<{ paymentUrl: string; orderId: string }> {
     return this.createIntention(
       amount,
@@ -63,6 +66,7 @@ export class PaymobService {
         parseInt(this.instapayIntegrationId!),
       ],
       requestId,
+      redirectPath,
     );
   }
 
