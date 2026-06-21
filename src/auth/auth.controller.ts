@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
   Controller,
   Post,
@@ -8,6 +7,7 @@ import {
   Get,
   Query,
   Res,
+  HttpCode,
 } from '@nestjs/common';
 import * as express from 'express';
 import { AuthGuard } from '@nestjs/passport';
@@ -186,8 +186,10 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized' })
   @Post('logout')
   @UseGuards(AuthGuard('jwt'))
+  @HttpCode(200)
   logout(@Req() req) {
-    return this.authService.logout(req.user.userId);
+    const accessToken = req.headers.authorization?.split(' ')[1];
+    return this.authService.logout(req.user.userId, accessToken);
   }
 
   @ApiOperation({

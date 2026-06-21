@@ -12,6 +12,7 @@ import { InvoiceModule } from '../invoice/invoice.module';
 import { MailModule } from '../mail/mail.module';
 
 import { NotificationModule } from 'src/notification/notification.module';
+import { WalletModule } from 'src/wallet/wallet.module';
 @Module({
   imports: [
     MongooseModule.forFeature([
@@ -22,8 +23,8 @@ import { NotificationModule } from 'src/notification/notification.module';
     ]),
     InvoiceModule,
     MailModule,
-    NotificationModule
-
+    NotificationModule,
+    WalletModule,
   ],
   controllers: [PaymentController],
   providers: [PaymentService, PaymobService, PaymentScheduler],

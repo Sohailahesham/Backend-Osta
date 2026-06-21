@@ -86,7 +86,6 @@ export class WalletService {
     return withdrawal;
   }
 
-  // الأدمن يشوف كل طلبات السحب
   async getAllWithdrawals() {
     return this.withdrawalModel
       .find()
@@ -140,4 +139,26 @@ export class WalletService {
 
     return withdrawal;
   }
+
+
+
+  async compensateTechnician(userId: string, amount: number, requestId: string) {
+  const wallet = await this.walletModel.findOne({
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!wallet) throw new NotFoundException('Wallet not found');
+
+  wallet.balance += amount;
+  wallet.transactions.push({
+    type: TransactionType.CREDIT,
+    amount,
+    description: `Compensation for cancelled request #${requestId}`,
+    requestId: new Types.ObjectId(requestId),
+    createdAt: new Date(),
+  } as any);
+
+  await wallet.save();
+  return wallet;
+}
 }

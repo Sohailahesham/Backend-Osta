@@ -68,10 +68,15 @@ export class CreatePostDto {
   @Transform(({ value }) => value === 'true' || value === true)
   isEmergency?: boolean;
 
+
   @ApiPropertyOptional({ example: 200 })
   @IsNumber()
-  @Min(100)
-  @Transform(({ value }) => Number(value))
+  @Min(50)
+  @Transform(({ value }) => {
+  if (value === undefined || value === null || value === '') return undefined;
+  const num = Number(value);
+  return isNaN(num) ? undefined : num;
+})
   @IsOptional()
   budget?: number;
 

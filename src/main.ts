@@ -7,11 +7,17 @@ import { ResponseInterceptor } from './common/interceptors/response.interceptor'
 import * as express from 'express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
-
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  );
+
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
   app.enableCors({
@@ -47,7 +53,7 @@ async function bootstrap() {
     swaggerOptions: { persistAuthorization: true },
   });
 
-  app.getHttpAdapter().get('/api-json', (req, res: express.Response) => {
+  app.getHttpAdapter().get('/api-json', (req :express.Request, res: express.Response) => {
     res.json(document);
   });
 

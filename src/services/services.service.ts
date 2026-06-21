@@ -49,6 +49,14 @@ export class ServicesService {
     if (categoryId) {
       if (!Types.ObjectId.isValid(categoryId))
         throw new BadRequestException('Invalid categoryId');
+
+      // Verify the ID actually exists in the Categories collection —
+      // not just that it's shaped like a valid ObjectId. Without this,
+      // a syntactically valid but wrong-collection ID (e.g. a serviceId)
+      // silently passes through and returns an empty result set instead
+      // of a clear error. findOne() throws NotFoundException if missing.
+      await this.categoriesService.findOne(categoryId);
+
       filter.category = new Types.ObjectId(categoryId);
     }
     return this.serviceModel

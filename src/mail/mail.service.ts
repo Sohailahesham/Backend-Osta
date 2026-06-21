@@ -5,6 +5,12 @@ import type { Transporter } from 'nodemailer';
 import * as fs from 'fs';
 import * as path from 'path';
 
+const logoAttachment = {
+  filename: 'logo.png',
+  path: path.join(process.cwd(), 'src', 'assets', 'logo.png'),
+  cid: 'osta-logo',
+};
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -52,14 +58,20 @@ export class MailService {
     await this.transporter.sendMail({
       from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
       to: email,
-      subject: 'تأكيد البريد الإلكتروني - أوسطا',
+      subject: 'تأكيد البريد الإلكتروني - اسطي',
+      attachments: [logoAttachment],
       html: `
     <div style="margin:0; padding:40px 20px; background:#f4f8f4; font-family:Segoe UI,Arial,sans-serif; direction:rtl; text-align:right;">
       <div style="max-width:600px; margin:auto; background:#ffffff; border-radius:20px; overflow:hidden; box-shadow:0 10px 30px rgba(0,0,0,.08);">
 
         <!-- Header -->
         <div style="background:#1B5E20; padding:30px; text-align:center;">
-          <h1 style="margin:0; color:white; font-size:34px;">أوسطا 🔧</h1>
+<div class="logo">
+  <img
+    src="cid:osta-logo"
+    alt="أوسطا"
+style="max-width:180px;height:auto;margin-bottom:30px;"  />
+</div>
           <p style="color:#d8ead9; margin-top:10px; font-size:15px;">
             منصة الخدمات الاحترافية
           </p>
@@ -91,7 +103,7 @@ export class MailService {
         <!-- Footer -->
         <div style="background:#fafafa; padding:20px; text-align:center; border-top:1px solid #eee;">
           <p style="color:#888; font-size:13px; margin:0;">
-            منصة أوسطا © 2026
+            منصة اسطي © 2026
           </p>
           <p style="color:#aaa; font-size:12px; margin-top:8px;">
             إذا لم تقم بإنشاء هذا الحساب، يمكنك تجاهل هذا البريد بأمان.
@@ -119,7 +131,8 @@ export class MailService {
     await this.transporter.sendMail({
       from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
       to: email,
-      subject: 'رمز التحقق لإعادة تعيين كلمة المرور - أوسطا',
+      subject: 'رمز التحقق لإعادة تعيين كلمة المرور - اسطي',
+      attachments: [logoAttachment],
       html,
     });
   }
@@ -163,13 +176,14 @@ export class MailService {
       from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
       to: email,
       subject: `فاتورة ${data.invoiceNumber} - أوسطا`,
+      attachments: [logoAttachment],
       html: `
 <!doctype html>
 <html lang="ar" dir="rtl">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>فاتورة - أوسطا</title>
+    <title>فاتورة - اسطي</title>
   </head>
   <body>
     <div style="margin: 0; padding: 40px 20px; background: #f4f8f4; font-family: Segoe UI, Arial, sans-serif; direction: rtl; text-align: right;">
@@ -177,7 +191,12 @@ export class MailService {
         
         <!-- Header -->
         <div style="background: #1b5e20; padding: 30px; text-align: center">
-          <h1 style="margin: 0; color: white; font-size: 34px">أوسطا 🔧</h1>
+          <div class="logo">
+  <img
+    src="cid:osta-logo"
+    alt="أوسطا"
+style="max-width:180px;height:auto;margin-bottom:30px;"  />
+</div>
           <p style="color: #d8ead9; margin-top: 10px; font-size: 15px">منصة الخدمات الاحترافية</p>
         </div>
 
@@ -235,7 +254,7 @@ export class MailService {
 
         <!-- Footer -->
         <div style="background: #fafafa; padding: 20px; text-align: center; border-top: 1px solid #eee;">
-          <p style="color: #888; font-size: 13px; margin: 0">منصة أوسطا © 2026</p>
+          <p style="color: #888; font-size: 13px; margin: 0">منصة اسطي © 2026</p>
         </div>
 
       </div>
@@ -251,9 +270,10 @@ export class MailService {
     data: { clientName: string; amount: number },
   ) {
     await this.transporter.sendMail({
-    from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
+      from: `"Osta App" <${process.env.MAIL_USER}>`,
       to: email,
-      subject: 'تم استرداد العربون - أوسطا',
+      subject: 'تم استرداد العربون - اسطي',
+      attachments: [logoAttachment],
       html: `
 <!doctype html>
 <html lang="ar" dir="rtl">
@@ -266,7 +286,12 @@ export class MailService {
       <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
         
         <div style="background: #1b5e20; padding: 30px; text-align: center">
-          <h1 style="margin: 0; color: white; font-size: 34px">أوسطا 🔧</h1>
+<div class="logo">
+  <img
+    src="cid:osta-logo"
+    alt="أوسطا"
+style="max-width:180px;height:auto;margin-bottom:30px;"  />
+</div>
           <p style="color: #d8ead9; margin-top: 10px; font-size: 15px">منصة الخدمات الاحترافية</p>
         </div>
 
@@ -283,6 +308,59 @@ export class MailService {
           </div>
           
           <p style="color: #888; font-size: 13px;">سيظهر المبلغ في حسابك خلال 3-5 أيام عمل</p>
+        </div>
+
+        <div style="background: #fafafa; padding: 20px; text-align: center; border-top: 1px solid #eee;">
+          <p style="color: #888; font-size: 13px; margin: 0">منصة اسطي © 2026</p>
+        </div>
+
+      </div>
+    </div>
+  </body>
+</html>
+    `,
+    });
+  }
+
+
+
+
+  async sendCompensationEmail(
+  email: string,
+  data: { technicianName: string; amount: number },
+) {
+  await this.transporter.sendMail({
+    from: `"Osta App" <${process.env.MAIL_USER}>`,
+    to: email,
+    subject: 'تعويض إلغاء طلب - اسطي',
+    html: `
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <body>
+    <div style="margin: 0; padding: 40px 20px; background: #f4f8f4; font-family: Segoe UI, Arial, sans-serif; direction: rtl; text-align: right;">
+      <div style="max-width: 600px; margin: auto; background: #ffffff; border-radius: 20px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.08);">
+        
+        <div style="background: #1b5e20; padding: 30px; text-align: center">
+          <div class="logo">
+  <img
+    src="cid:osta-logo"
+    alt="أوسطا"
+style="max-width:180px;height:auto;margin-bottom:30px;"  />
+</div>
+          <p style="color: #d8ead9; margin-top: 10px; font-size: 15px">منصة الخدمات الاحترافية</p>
+        </div>
+
+        <div style="padding: 40px 30px; text-align: center">
+          <div style="width: 90px; height: 90px; margin: auto; border-radius: 50%; background: #e8f5e9; line-height: 90px; font-size: 42px;">
+            💰
+          </div>
+          <h2 style="color: #1b5e20; margin-top: 25px">تم إضافة تعويض لمحفظتك</h2>
+          <p style="color: #555; font-size: 15px;">عزيزي ${data.technicianName}،</p>
+          <p style="color: #555; font-size: 15px;">قام العميل بإلغاء الطلب بعد قبولك له، تم إضافة مبلغ العربون كتعويض إلى محفظتك</p>
+          
+          <div style="background: #e8f5e9; border-radius: 12px; padding: 20px; margin: 25px 0; display: inline-block;">
+            <p style="margin: 0; color: #1b5e20; font-size: 24px; font-weight: bold;">${data.amount} جنيه</p>
+          </div>
         </div>
 
         <div style="background: #fafafa; padding: 20px; text-align: center; border-top: 1px solid #eee;">
