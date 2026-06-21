@@ -14,6 +14,7 @@ export class VerifiedEmailGuard implements CanActivate {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
+  
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const userId = req.user?.userId;

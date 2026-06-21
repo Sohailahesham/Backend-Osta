@@ -28,6 +28,7 @@ import { MailService } from 'src/mail/mail.service';
 // ── NOTIFICATION IMPORTS ──────────────────────────────────────────────────────
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/enums/notification-type.enum';
+import { WalletService } from 'src/wallet/wallet.service';
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -40,6 +41,7 @@ export class PaymentService {
     private paymobService: PaymobService,
     private invoiceService: InvoiceService,
     private mailService: MailService,
+    private walletService: WalletService,
     // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
     private readonly notificationService: NotificationService,
     // ─────────────────────────────────────────────────────────────────────────
@@ -310,4 +312,28 @@ export class PaymentService {
       // ────────────────────────────────────────────────────────────────────
     }
   }
+
+  async compensateTechnician(payment: PaymentDocument, technicianId: string) {
+  await this.walletService.compensateTechnician(
+    technicianId,
+    payment.amount,
+    payment.requestId.toString(),
+  );
+
+  await this.paymentModel.findByIdAndUpdate(payment._id, {
+    status: PaymentStatus.PAID,
+  });
+
+  await this.requestModel.findByIdAndUpdate(payment.requestId, {
+    depositStatus: DepositStatus.UNPAID,
+  });
+
+  const technician = await this.userModel.findById(technicianId);
+  if (technician) {
+    await this.mailService.sendCompensationEmail(technician.email, {
+      technicianName: technician.fullName,
+      amount: payment.amount,
+    });
+  }
+}
 }

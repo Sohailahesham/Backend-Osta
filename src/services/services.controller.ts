@@ -12,6 +12,7 @@ import {
   UseGuards,
   Query,
   Req,
+  NotFoundException,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { ServicesService } from './services.service';
@@ -37,10 +38,16 @@ export class ServicesController {
   @ApiOperation({ summary: 'Get all services (filter by categoryId)' })
   @ApiQuery({ name: 'categoryId', required: false })
   @Get()
-  async findAll(@Query('categoryId') categoryId?: string) {
-    const data = await this.servicesService.findAll(categoryId);
-    return { message: 'Services fetched successfully', data };
+async findAll(@Query('categoryId') categoryId?: string) {
+  const data = await this.servicesService.findAll(categoryId);
+ 
+  if (categoryId && data.length === 0) {
+    throw new NotFoundException('No services found for this category');
   }
+ 
+  return { message: 'Services fetched successfully', data };
+}
+
 
   @ApiOperation({ summary: 'Get most common services (top 6)' })
   @Get('most-common')

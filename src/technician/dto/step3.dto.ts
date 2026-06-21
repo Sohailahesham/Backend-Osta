@@ -1,10 +1,13 @@
 import {
+  ArrayNotEmpty,
   IsArray,
   IsBoolean,
   IsEnum,
+  IsInt,
   IsNotEmpty,
-  IsNumber,
   IsString,
+  Max,
+  Min,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { WorkingDay } from '../schemas/technician.schema';
@@ -15,7 +18,9 @@ export class Step3Dto {
     example: 5,
     type: Number,
   })
-  @IsNumber()
+  @IsInt({ message: 'yearsOfExperience must be a whole number' })
+  @Min(0, { message: 'yearsOfExperience cannot be negative' })
+  @Max(60, { message: 'yearsOfExperience seems unrealistic' })
   yearsOfExperience: number;
 
   @ApiProperty({
@@ -42,6 +47,7 @@ export class Step3Dto {
     type: [String],
   })
   @IsArray()
+  @ArrayNotEmpty({ message: 'workingDays must include at least one day' })
   @IsEnum(WorkingDay, { each: true, message: 'Invalid working day' })
   workingDays: WorkingDay[];
 
