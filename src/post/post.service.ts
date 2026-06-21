@@ -120,6 +120,168 @@ export class PostService {
     };
   }
 
+  async findAssignedCustomRequests(technicianId: string) {
+    const proposals = await this.proposalModel
+      .find({
+        technicianId: new Types.ObjectId(technicianId),
+        status: ProposalStatus.ACCEPTED,
+      })
+      .populate({
+        path: 'postId',
+        populate: { path: 'userId', select: 'fullName phone governorate city' },
+      })
+      .lean()
+      .exec();
+
+    if (proposals.length === 0) {
+      return { data: [] };
+    }
+
+    const postIds = proposals
+      .map((proposal) => proposal.postId?._id)
+      .filter((value): value is Types.ObjectId => Boolean(value));
+
+    const requests = await this.requestModel
+      .find({
+        postId: { $in: postIds },
+        assignedTechnician: new Types.ObjectId(technicianId),
+      })
+      .select(
+        'postId status depositAmount depositStatus preferredDate preferredTime createdAt updatedAt notes completionNote totalPrice address userId',
+      )
+      .lean()
+      .exec();
+
+    const requestByPostId = new Map(
+      requests.map((request) => [request.postId?.toString(), request]),
+    );
+
+    const data = proposals
+      .map((proposal) => {
+        const post = proposal.postId as any;
+        if (!post?._id) return null;
+
+        const matchedRequest = requestByPostId.get(post._id.toString());
+
+        return {
+          _id: matchedRequest?._id ?? post.requestId ?? post._id,
+          status: matchedRequest?.status ?? RequestStatus.ACCEPTED,
+          depositAmount: matchedRequest?.depositAmount,
+          depositStatus: matchedRequest?.depositStatus,
+          preferredDate: matchedRequest?.preferredDate ?? post.preferredDate,
+          preferredTime: matchedRequest?.preferredTime ?? post.preferredTime,
+          createdAt: matchedRequest?.createdAt ?? proposal.createdAt,
+          updatedAt: matchedRequest?.updatedAt ?? proposal.updatedAt,
+          notes: matchedRequest?.notes ?? proposal.description ?? post.description,
+          completionNote: matchedRequest?.completionNote ?? null,
+          totalPrice: matchedRequest?.totalPrice ?? proposal.price,
+          userId: post.userId ?? null,
+          serviceId: null,
+          postId: {
+            _id: post._id,
+            title: post.title,
+            budget: post.budget,
+            acceptedProposal: {
+              _id: proposal._id,
+              estimatedTime: proposal.estimatedTime,
+              price: proposal.price,
+            },
+          },
+          address: matchedRequest?.address ?? post.address,
+        };
+      })
+      .filter(Boolean);
+
+    return { data };
+  }
+
+  async findPendingCustomRequestsForTechnician(technicianId: string) {
+    const proposals = await this.proposalModel
+      .find({
+        technicianId: new Types.ObjectId(technicianId),
+        status: { $in: [ProposalStatus.PENDING, ProposalStatus.ACCEPTED] },
+      })
+      .populate({
+        path: 'postId',
+        populate: { path: 'userId', select: 'fullName phone governorate city' },
+      })
+      .sort({ updatedAt: -1 })
+      .lean()
+      .exec();
+
+    if (proposals.length === 0) {
+      return { data: [] };
+    }
+
+    const postIds = proposals
+      .map((proposal) => proposal.postId?._id)
+      .filter((value): value is Types.ObjectId => Boolean(value));
+
+    const requests = await this.requestModel
+      .find({
+        postId: { $in: postIds },
+        assignedTechnician: new Types.ObjectId(technicianId),
+      })
+      .select(
+        'postId status depositAmount depositStatus preferredDate preferredTime createdAt updatedAt notes completionNote totalPrice address userId',
+      )
+      .lean()
+      .exec();
+
+    const requestByPostId = new Map(
+      requests.map((request) => [request.postId?.toString(), request]),
+    );
+
+    const data = proposals
+      .map((proposal) => {
+        const post = proposal.postId as any;
+        if (!post?._id) return null;
+
+        const matchedRequest = requestByPostId.get(post._id.toString());
+        const isWaitingClient =
+          proposal.status === ProposalStatus.PENDING && !matchedRequest;
+
+        return {
+          _id:
+            matchedRequest?._id?.toString() ??
+            `proposal:${proposal._id.toString()}`,
+          requestId: matchedRequest?._id?.toString() ?? null,
+          chatRequestId: matchedRequest?._id?.toString() ?? null,
+          proposalId: proposal._id.toString(),
+          pendingSource: isWaitingClient ? 'proposal' : 'request',
+          status: isWaitingClient
+            ? RequestStatus.PENDING
+            : matchedRequest?.status ?? RequestStatus.ACCEPTED,
+          depositAmount: matchedRequest?.depositAmount,
+          depositStatus: matchedRequest?.depositStatus,
+          preferredDate: matchedRequest?.preferredDate ?? post.preferredDate,
+          preferredTime: matchedRequest?.preferredTime ?? post.preferredTime,
+          createdAt: matchedRequest?.createdAt ?? proposal.createdAt,
+          updatedAt: matchedRequest?.updatedAt ?? proposal.updatedAt,
+          notes:
+            matchedRequest?.notes ?? proposal.description ?? post.description,
+          completionNote: matchedRequest?.completionNote ?? null,
+          totalPrice: matchedRequest?.totalPrice ?? proposal.price,
+          userId: post.userId ?? null,
+          serviceId: null,
+          postId: {
+            _id: post._id,
+            title: post.title,
+            budget: post.budget,
+            acceptedProposal: {
+              _id: proposal._id,
+              estimatedTime: proposal.estimatedTime,
+              price: proposal.price,
+            },
+          },
+          address: matchedRequest?.address ?? post.address,
+        };
+      })
+      .filter(Boolean);
+
+    return { data };
+  }
+
   // ─── Get Post By Id ───────────────────────────────────────────────────────
   async findById(postId: string): Promise<PostDocument> {
     const post = await this.postModel

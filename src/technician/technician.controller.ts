@@ -23,6 +23,7 @@ import { Step3Dto } from './dto/step3.dto';
 import { Step4Dto } from './dto/step4.dto';
 import * as fs from 'fs';
 import { TechnicianGuard } from 'src/auth/guards/technician.guard';
+import { VerifiedEmailGuard } from 'src/auth/guards/verified-email.guard';
 import {
   ApiBearerAuth,
   ApiBody,
@@ -34,7 +35,7 @@ import {
 @ApiTags('Technician')
 @ApiBearerAuth('JWT')
 @Controller('technician')
-@UseGuards(AuthGuard('jwt'), TechnicianGuard)
+@UseGuards(AuthGuard('jwt'), TechnicianGuard, VerifiedEmailGuard)
 export class TechnicianController {
   constructor(private readonly technicianService: TechnicianService) {}
 

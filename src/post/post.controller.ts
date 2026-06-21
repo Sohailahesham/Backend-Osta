@@ -90,6 +90,24 @@ async createPost(
     return this.postService.findMyPosts(req.user.userId, +page, +limit);
   }
 
+  @ApiOperation({ summary: '[Technician] Get accepted custom orders assigned to me' })
+  @Get('technician/assigned')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TECHNICIAN)
+  findAssignedCustomRequests(@Req() req) {
+    return this.postService.findAssignedCustomRequests(req.user.userId);
+  }
+
+  @ApiOperation({ summary: '[Technician] Get pending custom proposals and accepted custom orders' })
+  @Get('technician/pending')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.TECHNICIAN)
+  findPendingCustomRequestsForTechnician(@Req() req) {
+    return this.postService.findPendingCustomRequestsForTechnician(
+      req.user.userId,
+    );
+  }
+
   // GET /posts/:id
   @ApiOperation({ summary: 'Get post by ID' })
   @Get(':id')
