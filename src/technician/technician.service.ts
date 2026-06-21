@@ -29,7 +29,7 @@ import {
   RequestDocument,
 } from 'src/request/schemas/request.schema';
 import { RequestStatus } from 'src/request/enums/request-status.enum';
-
+import { UpdateWorkInfoDto } from './dto/update-work-info.dto';
 @Injectable()
 export class TechnicianService {
   constructor(
@@ -235,4 +235,79 @@ export class TechnicianService {
       },
     };
   }
+async updateWorkInfo(
+  userId: string,
+  dto: UpdateWorkInfoDto,
+) {
+  const technician = await this.technicianModel.findOne({
+    userId: new Types.ObjectId(userId),
+  });
+
+  if (!technician) {
+    throw new NotFoundException('Technician not found');
+  }
+
+  if (dto.jobTitle !== undefined) {
+    technician.jobTitle = dto.jobTitle;
+  }
+
+  if (dto.serviceIds) {
+    const categoryId = technician.specialization?.categoryId;
+
+    if (!categoryId) {
+      throw new BadRequestException(
+        'Technician category is not set',
+      );
+    }
+
+    const services = await this.serviceModel.find({
+      _id: { $in: dto.serviceIds },
+      isActive: true,
+    });
+
+    if (services.length !== dto.serviceIds.length) {
+      throw new BadRequestException(
+        'Some services not found or inactive',
+      );
+    }
+
+    const invalidService = services.some(
+      (service) =>
+        service.category.toString() !== categoryId.toString(),
+    );
+
+    if (invalidService) {
+      throw new BadRequestException(
+        'Some services do not belong to technician category',
+      );
+    }
+
+    technician.specialization.serviceIds = dto.serviceIds.map(
+      (id) => new Types.ObjectId(id),
+    );
+  }
+
+  await technician.save();
+
+  const updatedTechnician = await this.technicianModel
+    .findById(technician._id)
+    .populate('userId')
+    .populate([
+      {
+        path: 'specialization.categoryId',
+        select: 'name',
+      },
+      {
+        path: 'specialization.serviceIds',
+        select: 'name',
+      },
+    ])
+    .lean()
+    .exec();
+
+  return {
+    message: 'Work information updated successfully',
+    data: this.toTechnicianDataDto(updatedTechnician),
+  };
+}
 }
