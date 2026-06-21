@@ -14,11 +14,9 @@ import {
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { WalletModule } from '../wallet/wallet.module';
-<<<<<<< HEAD
+
 import { BlacklistedTokenSchema , BlacklistedToken } from 'src/users/schemas/blacklistToken.schema';
-=======
 import { VerifiedEmailGuard } from './guards/verified-email.guard';
->>>>>>> origin/main
 
 @Module({
   imports: [

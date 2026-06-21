@@ -270,16 +270,10 @@ style="max-width:180px;height:auto;margin-bottom:30px;"  />
     data: { clientName: string; amount: number },
   ) {
     await this.transporter.sendMail({
-<<<<<<< HEAD
       from: `"Osta App" <${process.env.MAIL_USER}>`,
       to: email,
       subject: 'تم استرداد العربون - اسطي',
       attachments: [logoAttachment],
-=======
-    from: `"Osta App" <${this.getEnvValue('MAIL_USER')}>`,
-      to: email,
-      subject: 'تم استرداد العربون - أوسطا',
->>>>>>> origin/main
       html: `
 <!doctype html>
 <html lang="ar" dir="rtl">
