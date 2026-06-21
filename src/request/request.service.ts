@@ -441,84 +441,90 @@ export class RequestService {
   //  → Notify TECHNICIAN when client cancels
   // ─────────────────────────────────────────────────────────────────────────
   async cancel(
-    requestId: string,
-    userId: string,
-    userRole: UserRole,
-    reason?: string,
-  ): Promise<RequestDocument> {
-    const request = await this.findById(requestId);
+  requestId: string,
+  userId: string,
+  userRole: UserRole,
+  reason?: string,
+): Promise<RequestDocument> {
+  const request = await this.findById(requestId);
 
-    if (
-      request.status === RequestStatus.ON_THE_WAY ||
-      request.status === RequestStatus.STARTED ||
-      request.status === RequestStatus.COMPLETED
-    )
-      throw new BadRequestException('Cannot cancel request at this stage');
+  if (
+    request.status === RequestStatus.ON_THE_WAY ||
+    request.status === RequestStatus.STARTED ||
+    request.status === RequestStatus.COMPLETED
+  )
+    throw new BadRequestException('Cannot cancel request at this stage');
 
-    if (userRole === UserRole.CLIENT) {
-      const requestUserId = this.getClientId(request);
-      if (requestUserId !== userId)
-        throw new ForbiddenException('You can only cancel your own requests');
-    }
+  if (userRole === UserRole.CLIENT) {
+    const requestUserId = this.getClientId(request);
+    if (requestUserId !== userId)
+      throw new ForbiddenException('You can only cancel your own requests');
+  }
 
-    if (userRole === UserRole.TECHNICIAN) {
-      const assignedId = this.getAssignedId(request);
-      if (!assignedId)
-        throw new BadRequestException('No technician assigned to this request');
-      if (assignedId !== userId)
-        throw new ForbiddenException(
-          'You can only cancel your assigned requests',
-        );
-    }
+  if (userRole === UserRole.TECHNICIAN) {
+    const assignedId = this.getAssignedId(request);
+    if (!assignedId)
+      throw new BadRequestException('No technician assigned to this request');
+    if (assignedId !== userId)
+      throw new ForbiddenException(
+        'You can only cancel your assigned requests',
+      );
+  }
 
-    // Refund deposit if already paid
-    const payment = await this.paymentService.getDepositPayment(requestId);
-    if (payment && payment.status === PaymentStatus.PAID) {
+  // Handle deposit: compensate technician if client cancelled after assignment, else refund client
+  const payment = await this.paymentService.getDepositPayment(requestId);
+  if (payment && payment.status === PaymentStatus.PAID) {
+    const assignedId = this.getAssignedId(request);
+
+    if (userRole === UserRole.CLIENT && assignedId) {
+      await this.paymentService.compensateTechnician(payment, assignedId);
+    } else {
       await this.paymentService.refundDeposit(payment);
     }
+  }
 
-    request.status = RequestStatus.CANCELLED;
-    request.cancellation = {
-      cancelledBy: new Types.ObjectId(userId) as any,
-      role: userRole,
-      reason: reason ?? undefined,
-      cancelledAt: new Date(),
-    };
-    const savedRequest = await request.save();
-    this.chatGateway.closeRoom(requestId);
+  request.status = RequestStatus.CANCELLED;
+  request.cancellation = {
+    cancelledBy: new Types.ObjectId(userId) as any,
+    role: userRole,
+    reason: reason ?? undefined,
+    cancelledAt: new Date(),
+  };
+  const savedRequest = await request.save();
+  this.chatGateway.closeRoom(requestId);
 
-    // ── NOTIFICATION: cancellation alerts ────────────────────────────────────
-    const clientId    = this.getClientId(request);
-    const technicianId = this.getAssignedId(request);
-    const reasonText  = reason ? ` السبب: ${reason}` : '';
+  // ── NOTIFICATION: cancellation alerts ────────────────────────────────────
+  const clientId    = this.getClientId(request);
+  const technicianId = this.getAssignedId(request);
+  const reasonText  = reason ? ` السبب: ${reason}` : '';
 
-    if (userRole === UserRole.CLIENT) {
-      // Client cancelled , notify the technician (if one was assigned)
-      if (technicianId) {
-        await this.notificationService.send({
-          recipientId: technicianId,
-          type: NotificationType.REQUEST_CANCELLED,
-          title: 'تم إلغاء الطلب ❌',
-          body: `قام العميل بإلغاء الطلب.${reasonText}`,
-          requestId,
-          metadata: { cancelledBy: userId, role: userRole, reason },
-        });
-      }
-    } else {
-      // Technician or Admin cancelled , notify the client
+  if (userRole === UserRole.CLIENT) {
+    // Client cancelled , notify the technician (if one was assigned)
+    if (technicianId) {
       await this.notificationService.send({
-        recipientId: clientId,
+        recipientId: technicianId,
         type: NotificationType.REQUEST_CANCELLED,
         title: 'تم إلغاء الطلب ❌',
-        body: `تم إلغاء طلبك.${reasonText}`,
+        body: `قام العميل بإلغاء الطلب.${reasonText}`,
         requestId,
         metadata: { cancelledBy: userId, role: userRole, reason },
       });
     }
-    // ─────────────────────────────────────────────────────────────────────────
-
-    return savedRequest;
+  } else {
+    // Technician or Admin cancelled , notify the client
+    await this.notificationService.send({
+      recipientId: clientId,
+      type: NotificationType.REQUEST_CANCELLED,
+      title: 'تم إلغاء الطلب ❌',
+      body: `تم إلغاء طلبك.${reasonText}`,
+      requestId,
+      metadata: { cancelledBy: userId, role: userRole, reason },
+    });
   }
+  // ─────────────────────────────────────────────────────────────────────────
+
+  return savedRequest;
+}
 
   async delete(requestId: string): Promise<{ message: string }> {
     if (!Types.ObjectId.isValid(requestId))

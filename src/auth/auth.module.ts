@@ -14,12 +14,15 @@ import {
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { WalletModule } from '../wallet/wallet.module';
+import { BlacklistedTokenSchema , BlacklistedToken } from 'src/users/schemas/blacklistToken.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: User.name, schema: UserSchema },
       { name: Technician.name, schema: TechnicianSchema },
+      { name: BlacklistedToken.name, schema: BlacklistedTokenSchema },
+
     ]),
     PassportModule,
     WalletModule,

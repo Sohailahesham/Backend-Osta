@@ -24,6 +24,7 @@ import {
   Technician,
   TechnicianDocument,
 } from 'src/technician/schemas/technician.schema';
+import { User, UserDocument, UserRole } from 'src/users/schemas/user.schema';
 
 // ── NOTIFICATION IMPORTS ──────────────────────────────────────────────────────
 import { NotificationService } from 'src/notification/notification.service';
@@ -38,10 +39,9 @@ export class PostService {
     @InjectModel(MainRequest.name) private requestModel: Model<RequestDocument>,
     @InjectModel(Technician.name)
     private technicianModel: Model<TechnicianDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly chatGateway: ChatGateway,
-    // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
     private readonly notificationService: NotificationService,
-    // ─────────────────────────────────────────────────────────────────────────
   ) {}
 
   // ─── Create Post (CLIENT) ─────────────────────────────────────────────────
@@ -60,13 +60,14 @@ export class PostService {
     });
   }
 
-  // ─── Get All Open Posts (TECHNICIAN) ──────────────────────────────────────
+  // ─── Get All Open Posts (TECHNICIAN) ──────
+  // ────────────────────────────────
+
   async findAllOpen(page = 1, limit = 10) {
-    const [data, total] = await Promise.all([
+    const [posts, total] = await Promise.all([
       this.postModel
         .find({ status: PostStatus.OPEN })
-        .populate('userId', 'fullName')
-        .populate('categoryId', 'name')
+        .populate('userId', '-password -refreshToken')
         .sort({ isEmergency: -1, createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -75,15 +76,56 @@ export class PostService {
       this.postModel.countDocuments({ status: PostStatus.OPEN }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const postsWithProposals = await Promise.all(
+      posts.map(async (post) => {
+        const proposals = await this.proposalModel
+          .find({ postId: post._id })
+          .lean()
+          .exec();
+
+        const proposalsWithTechnicianData = await Promise.all(
+          proposals.map(async (proposal) => {
+            const technicianUser = await this.userModel
+              .findById(proposal.technicianId)
+              .select('-password -refreshToken')
+              .lean();
+
+            const technicianProfile = await this.technicianModel
+              .findOne({ userId: proposal.technicianId })
+              .select(
+                '-personalImage -specialization -role -provider -rejectionReason -idBackImage -idFrontImage',
+              )
+              .lean();
+
+            return {
+              ...proposal,
+              technician: {
+                ...technicianUser,
+                ...technicianProfile,
+              },
+            };
+          }),
+        );
+
+        return { ...post, proposals: proposalsWithTechnicianData ,proposalsCount: proposalsWithTechnicianData.length};
+      }),
+    );
+
+    return {
+      data: postsWithProposals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   // ─── Get Post By Id ───────────────────────────────────────────────────────
   async findById(postId: string): Promise<PostDocument> {
     const post = await this.postModel
       .findById(postId)
-      .populate('userId', 'fullName phone')
-      .populate('categoryId', 'name')
+      .populate('userId', 'fullName phone governorate city gender')
+      .populate('categoryId', 'name image')
       .populate('acceptedProposal')
       .exec();
 
@@ -93,10 +135,10 @@ export class PostService {
 
   // ─── Get My Posts (CLIENT) ────────────────────────────────────────────────
   async findMyPosts(userId: string, page = 1, limit = 10) {
-    const [data, total] = await Promise.all([
+    const [posts, total] = await Promise.all([
       this.postModel
         .find({ userId: new Types.ObjectId(userId) })
-        .populate('categoryId', 'name')
+        .populate('categoryId', 'name image')
         .sort({ createdAt: -1 })
         .skip((page - 1) * limit)
         .limit(limit)
@@ -105,20 +147,62 @@ export class PostService {
       this.postModel.countDocuments({ userId: new Types.ObjectId(userId) }),
     ]);
 
-    return { data, total, page, limit, totalPages: Math.ceil(total / limit) };
+    const postsWithProposals = await Promise.all(
+      posts.map(async (post) => {
+        const proposals = await this.proposalModel
+          .find({ postId: post._id })
+          .lean()
+          .exec();
+
+        const proposalsWithTechnicianData = await Promise.all(
+          proposals.map(async (proposal) => {
+            const technicianUser = await this.userModel
+              .findById(proposal.technicianId)
+              .select('fullName phone governorate city gender')
+              .lean();
+
+            const technicianProfile = await this.technicianModel
+              .findOne({ userId: proposal.technicianId })
+              .select(
+                'averageRating totalReviews yearsOfExperience specialization verificationStatus personalImage',
+              )
+              .lean();
+
+            return {
+              ...proposal,
+              technician: {
+                ...technicianUser,
+                ...technicianProfile,
+              },
+            };
+          }),
+        );
+
+        return { ...post, proposals: proposalsWithTechnicianData ,proposalsCount: proposalsWithTechnicianData.length };
+      }),
+    );
+
+    return {
+      data: postsWithProposals,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit),
+    };
   }
 
   // ─── Submit Proposal (TECHNICIAN) ─────────────────────────────────────────
-  // NOTIFICATION → client receives alert that a new proposal arrived on their post
   async submitProposal(
     postId: string,
     technicianId: string,
     dto: CreateProposalDto,
   ): Promise<ProposalDocument> {
-    // NOTE: do NOT .populate('userId', ...) here — we need post.userId to stay
-    // a raw ObjectId so it can be safely converted to a string for the
-    // notification recipientId. Populating it turns it into a Document and
-    // .toString() on that does not return a valid ObjectId hex string.
+    if (
+      !Types.ObjectId.isValid(postId) ||
+      !Types.ObjectId.isValid(technicianId)
+    ) {
+      throw new BadRequestException('Invalid id');
+    }
     const post = await this.postModel.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
 
@@ -153,14 +237,14 @@ export class PostService {
       status: ProposalStatus.PENDING,
     });
 
-    // ── NOTIFICATION: tell the client a new proposal has arrived ─────────────
+    // ── NOTIFICATION ─────────────────────────────────────────────────────────
     try {
       await this.notificationService.send({
         recipientId: post.userId.toString(),
         type: NotificationType.NEW_PROPOSAL,
         title: 'عرض جديد على طلبك 📋',
         body: `قدّم أحد الفنيين عرضاً جديداً على طلبك. السعر المقترح: ${dto.price} ج.م.`,
-        requestId: postId,          // reusing requestId field to carry postId for frontend routing
+        requestId: postId,
         metadata: {
           postId,
           proposalId: (proposal._id as Types.ObjectId).toString(),
@@ -170,36 +254,90 @@ export class PostService {
         },
       });
     } catch (err) {
-      // Never let a notification failure break proposal creation itself
-      console.error('[submitProposal] Failed to send NEW_PROPOSAL notification:', err);
+      console.error(
+        '[submitProposal] Failed to send NEW_PROPOSAL notification:',
+        err,
+      );
     }
     // ─────────────────────────────────────────────────────────────────────────
 
     return proposal;
   }
 
-  // ─── Get Proposals (CLIENT) ───────────────────────────────────────────────
-  async getProposals(postId: string, userId: string) {
-    const post = await this.postModel.findById(postId);
-    if (!post) throw new NotFoundException('Post not found');
-
-    if (post.userId.toString() !== userId)
-      throw new ForbiddenException('Not authorized');
-
-    return this.proposalModel
-      .find({ postId: new Types.ObjectId(postId) })
-      .populate(
-        'technicianId',
-        'fullName averageRating totalReviews yearsOfExperience specialization verificationStatus',
-      )
-      .sort({ createdAt: -1 })
+  // ─── Get Proposals ────────────────────────────────────────────────────────
+  async getProposals(postId: string, userId: string, userRole: string) {
+    const post = await this.postModel
+      .findById(postId)
+      .populate('userId', 'fullName phone governorate city gender')
+      .populate('categoryId', 'name image')
       .lean()
       .exec();
+
+    if (!post) throw new NotFoundException('Post not found');
+
+    if (userRole === UserRole.CLIENT) {
+  const ownerId = (post.userId as any)?._id?.toString();
+  if (!ownerId || ownerId !== userId)
+    throw new ForbiddenException('Not authorized');
+}
+
+    const proposals = await this.proposalModel
+      .find({ postId: new Types.ObjectId(postId) })
+      .lean()
+      .exec();
+
+    const proposalsWithTechnicianData = await Promise.all(
+      proposals.map(async (proposal) => {
+        const technicianUser = await this.userModel
+          .findById(proposal.technicianId)
+          .select('fullName phone governorate city gender')
+          .lean();
+
+        const technicianProfile = await this.technicianModel
+          .findOne({ userId: proposal.technicianId })
+          .select(
+            'averageRating totalReviews yearsOfExperience specialization verificationStatus personalImage',
+          )
+          .lean();
+
+        const isMyProposal = proposal.technicianId.toString() === userId;
+
+        if (userRole === UserRole.TECHNICIAN) {
+          return {
+            _id: proposal._id,
+            estimatedTime: proposal.estimatedTime,
+            description: proposal.description,
+            status: proposal.status,
+            createdAt: proposal.createdAt,
+            isMyProposal,
+            ...(isMyProposal && { price: proposal.price }),
+            technician: isMyProposal
+              ? {
+                  ...technicianUser,
+                  ...technicianProfile,
+                }
+              : null,
+          };
+        }
+
+        return {
+          ...proposal,
+          technician: {
+            ...technicianUser,
+            ...technicianProfile,
+          },
+        };
+      }),
+    );
+
+    return {
+      post,
+      proposals: proposalsWithTechnicianData,
+      proposalsCount: proposalsWithTechnicianData.length
+    };
   }
 
   // ─── Accept Proposal (CLIENT) ─────────────────────────────────────────────
-  // NOTIFICATION → accepted technician gets congratulated
-  // NOTIFICATION → all rejected technicians get notified too
   async acceptProposal(postId: string, proposalId: string, userId: string) {
     const post = await this.postModel.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
@@ -255,7 +393,7 @@ export class PostService {
       requestId: request._id,
     });
 
-    // ── NOTIFICATION: tell the accepted technician their proposal won ─────────
+    // ── NOTIFICATION ─────────────────────────────────────────────────────────
     try {
       await this.notificationService.send({
         recipientId: proposal.technicianId.toString(),
@@ -271,11 +409,12 @@ export class PostService {
         },
       });
     } catch (err) {
-      console.error('[acceptProposal] Failed to send PROPOSAL_ACCEPTED notification:', err);
+      console.error(
+        '[acceptProposal] Failed to send PROPOSAL_ACCEPTED notification:',
+        err,
+      );
     }
-    // ─────────────────────────────────────────────────────────────────────────
 
-    // ── NOTIFICATION: tell all rejected technicians their proposals were declined
     try {
       await Promise.all(
         rejectedProposals.map((rejectedProposal) =>
@@ -293,18 +432,20 @@ export class PostService {
         ),
       );
     } catch (err) {
-      console.error('[acceptProposal] Failed to send PROPOSAL_REJECTED notification(s):', err);
+      console.error(
+        '[acceptProposal] Failed to send PROPOSAL_REJECTED notification(s):',
+        err,
+      );
     }
     // ─────────────────────────────────────────────────────────────────────────
 
     return {
       data: request,
-      message: 'accepted so the next step is paying the deposit ',
+      message: 'accepted so the next step is paying the deposit',
     };
   }
 
   // ─── Cancel Post (CLIENT) ─────────────────────────────────────────────────
-  // NOTIFICATION → all pending technicians notified that the post was cancelled
   async cancelPost(postId: string, userId: string) {
     const post = await this.postModel.findById(postId);
     if (!post) throw new NotFoundException('Post not found');
@@ -324,14 +465,11 @@ export class PostService {
       }
     }
 
-    // Fetch all pending proposals BEFORE rejecting them, so we know who to notify
     const pendingProposals = await this.proposalModel.find({
       postId: new Types.ObjectId(postId),
       status: ProposalStatus.PENDING,
     });
 
-    // Debug: if this logs 0, it means either no one proposed yet, or the
-    // proposals were already moved out of PENDING status before cancellation.
     console.log(
       `[cancelPost] postId=${postId} → found ${pendingProposals.length} pending proposal(s) to notify`,
     );
@@ -349,7 +487,7 @@ export class PostService {
       this.chatGateway.closeRoom(post.requestId.toString());
     }
 
-    // ── NOTIFICATION: tell all technicians who proposed that the post is cancelled
+    // ── NOTIFICATION ─────────────────────────────────────────────────────────
     try {
       await Promise.all(
         pendingProposals.map((proposal) =>
@@ -367,7 +505,10 @@ export class PostService {
         ),
       );
     } catch (err) {
-      console.error('[cancelPost] Failed to send POST_CANCELLED notification(s):', err);
+      console.error(
+        '[cancelPost] Failed to send POST_CANCELLED notification(s):',
+        err,
+      );
     }
     // ─────────────────────────────────────────────────────────────────────────
 

@@ -11,6 +11,7 @@ import {
   TechnicianSchema,
 } from 'src/technician/schemas/technician.schema';
 import { NotificationModule } from 'src/notification/notification.module';
+import { User, UserSchema } from 'src/users/schemas/user.schema';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { NotificationModule } from 'src/notification/notification.module';
       { name: Proposal.name, schema: ProposalSchema },
       { name: MainRequest.name, schema: RequestSchema },
       { name: Technician.name, schema: TechnicianSchema },
+      { name: User.name, schema: UserSchema },
     ]),
     ChatModule,
     NotificationModule

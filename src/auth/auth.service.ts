@@ -28,6 +28,7 @@ import {
   TechnicianDocument,
 } from '../technician/schemas/technician.schema';
 import { WalletService } from 'src/wallet/wallet.service';
+import { BlacklistedTokenDocument } from 'src/users/schemas/blacklistToken.schema';
 
 @Injectable()
 export class AuthService {
@@ -38,6 +39,8 @@ export class AuthService {
     private jwtService: JwtService,
     private mailService: MailService,
     private walletService: WalletService,
+    @InjectModel('BlacklistedToken')
+    private readonly blacklistedTokenModel: Model<BlacklistedTokenDocument>
   ) {}
 
   private async signTokens(user: UserDocument) {
@@ -181,8 +184,19 @@ export class AuthService {
     }
   }
 
-  async logout(userId: string) {
-    await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });
+  async logout(userId: string, accessToken: string) {
+    await this.userModel.findByIdAndUpdate(userId, { refreshToken: null });    
+    const decoded = this.jwtService.decode(accessToken) as { exp?: number };
+    const expiresAt = decoded?.exp
+      ? new Date(decoded.exp * 1000)
+      : new Date();
+ 
+    await this.blacklistedTokenModel.updateOne(
+      { token: accessToken },
+      { token: accessToken, userId, expiresAt },
+      { upsert: true },
+    );
+ 
     return { message: 'Logged out successfully' };
   }
 

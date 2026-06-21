@@ -110,14 +110,14 @@ async createPost(
     return this.postService.submitProposal(id, req.user.userId, dto);
   }
 
-  // GET /posts/:id/proposals ← CLIENT
-  @ApiOperation({ summary: '[Client] Get proposals for a post' })
+  // GET /posts/:id/proposals ← CLIENT OR TECHNICIAN
+  @ApiOperation({ summary: ' Get proposals for a post' })
   @Get(':id/proposals')
-  @UseGuards(RolesGuard)
-  @Roles(UserRole.CLIENT)
-  getProposals(@Param('id') id: string, @Req() req) {
-    return this.postService.getProposals(id, req.user.userId);
-  }
+@UseGuards(RolesGuard)
+@Roles(UserRole.CLIENT, UserRole.TECHNICIAN)
+getProposals(@Param('id') id: string, @Req() req) {
+  return this.postService.getProposals(id, req.user.userId, req.user.role);
+}
 
   // PATCH /posts/:id/proposals/:proposalId/accept ← CLIENT
   @ApiOperation({ summary: '[Client] Accept a proposal' })
@@ -140,4 +140,7 @@ async createPost(
   cancelPost(@Param('id') id: string, @Req() req) {
     return this.postService.cancelPost(id, req.user.userId);
   }
+
+
+
 }
