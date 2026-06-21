@@ -5,6 +5,7 @@ export interface MaintenanceShop {
   name: string;
   address: string;
   Maps_url: string;
+  phone: string | null;
 }
 
 @Injectable()
@@ -12,7 +13,8 @@ export class PlacesService {
   private readonly logger = new Logger(PlacesService.name);
   private readonly apiKey = process.env.GOOGLE_PLACES_API_KEY;
   private readonly baseUrl = 'https://places.googleapis.com/v1/places:searchText';
-  private readonly fieldMask = 'places.displayName,places.formattedAddress,places.location';
+  private readonly fieldMask =
+    'places.displayName,places.formattedAddress,places.location,places.nationalPhoneNumber';
 
   async searchShops(textQuery: string): Promise<MaintenanceShop[]> {
     if (!this.apiKey) {
@@ -38,6 +40,7 @@ export class PlacesService {
         name: p.displayName?.text ?? '',
         address: p.formattedAddress ?? '',
         Maps_url: `https://www.google.com/maps/search/?api=1&query=${p.location?.latitude},${p.location?.longitude}`,
+        phone: p.nationalPhoneNumber ?? null,
       }));
     } catch (err: any) {
       this.logger.error(`Places API error: ${err.message}`, err.response?.data);
