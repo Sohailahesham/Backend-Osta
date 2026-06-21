@@ -237,10 +237,15 @@ export class PaymentService {
     });
 
     const { paymentUrl, orderId } = await this.paymobService.getPaymentUrl(
-          remainingAmount,
-          { email: user.email, fullName: user.fullName, phone: user.phone ?? 'N/A' },
+      remainingAmount,
+      {
+        email: user.email,
+        fullName: user.fullName,
+        phone: user.phone ?? 'N/A',
+      },
       requestId,
-        );
+      `/client/tracking/${requestId}?showRating=true`, // ← redirect للتراكينج
+    );
 
     await this.paymentModel.findByIdAndUpdate(payment._id, {
       paymobOrderId: orderId,
@@ -314,26 +319,26 @@ export class PaymentService {
   }
 
   async compensateTechnician(payment: PaymentDocument, technicianId: string) {
-  await this.walletService.compensateTechnician(
-    technicianId,
-    payment.amount,
-    payment.requestId.toString(),
-  );
+    await this.walletService.compensateTechnician(
+      technicianId,
+      payment.amount,
+      payment.requestId.toString(),
+    );
 
-  await this.paymentModel.findByIdAndUpdate(payment._id, {
-    status: PaymentStatus.PAID,
-  });
-
-  await this.requestModel.findByIdAndUpdate(payment.requestId, {
-    depositStatus: DepositStatus.UNPAID,
-  });
-
-  const technician = await this.userModel.findById(technicianId);
-  if (technician) {
-    await this.mailService.sendCompensationEmail(technician.email, {
-      technicianName: technician.fullName,
-      amount: payment.amount,
+    await this.paymentModel.findByIdAndUpdate(payment._id, {
+      status: PaymentStatus.PAID,
     });
+
+    await this.requestModel.findByIdAndUpdate(payment.requestId, {
+      depositStatus: DepositStatus.UNPAID,
+    });
+
+    const technician = await this.userModel.findById(technicianId);
+    if (technician) {
+      await this.mailService.sendCompensationEmail(technician.email, {
+        technicianName: technician.fullName,
+        amount: payment.amount,
+      });
+    }
   }
-}
 }
