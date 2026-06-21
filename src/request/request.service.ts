@@ -27,6 +27,7 @@ import { CompleteRequestDto } from './dto/complete-request.dto';
 // ── NOTIFICATION IMPORTS ──────────────────────────────────────────────────────
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/enums/notification-type.enum';
+import { Review, ReviewDocument } from 'src/reviews/schemas/review.schema';
 // ─────────────────────────────────────────────────────────────────────────────
 
 @Injectable()
@@ -36,22 +37,21 @@ export class RequestService {
     private readonly requestModel: Model<RequestDocument>,
     private readonly invoiceService: InvoiceService,
     private readonly paymentService: PaymentService,
+    @InjectModel(Review.name)
+    private reviewModel: Model<ReviewDocument>,
     private readonly chatGateway: ChatGateway,
     @InjectModel(Technician.name)
     private readonly technicianModel: Model<TechnicianDocument>,
     // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
-    private readonly notificationService: NotificationService,
-    // ─────────────────────────────────────────────────────────────────────────
+    private readonly notificationService: NotificationService, // ─────────────────────────────────────────────────────────────────────────
   ) {}
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
-  
   private getClientId(request: RequestDocument): string {
     const u = request.userId as any;
     return u?._id?.toString() ?? u?.toString();
   }
-
 
   private getAssignedId(request: RequestDocument): string | null {
     const assigned = request.assignedTechnician as any;
@@ -96,14 +96,14 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName governorate city')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name description priceRange')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName governorate city')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name description priceRange')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -120,15 +120,15 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName email')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName email')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -146,35 +146,60 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name ')
-        .populate('serviceId', 'name priceRange')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name priceRange image') // ← أضيفي image
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
 
+    // اجمعي الـ requestIds اللي completed بس — query واحدة بدل ما تتكرر جوا الـ loop
+    const completedRequestIds = data
+    .filter((r) => r.status === RequestStatus.COMPLETED)
+    .map((r) => r._id);
+
+    const reviews = completedRequestIds.length
+      ? await this.reviewModel
+        .find({ requestId: { $in: completedRequestIds } })
+        .select('requestId rating comment')
+        .lean()
+      : [];
+
+    // map سريع للـ lookup
+    const reviewMap = new Map(reviews.map((r) => [r.requestId.toString(), r]));
+
     const enrichedData = await Promise.all(
       data.map(async (request) => {
-        if (!request.assignedTechnician) return request;
+        const result: Record<string, unknown> = { ...request };
 
-        const technician = await this.technicianModel
+        // الـ technician rating (موجود بالفعل)
+        if (request.assignedTechnician) {
+          const technician = await this.technicianModel
           .findOne({ userId: (request.assignedTechnician as any)._id })
           .select('averageRating yearsOfExperience')
           .lean();
 
-        return {
-          ...request,
-          assignedTechnician: {
+          result.assignedTechnician = {
             ...(request.assignedTechnician as any),
             averageRating: technician?.averageRating ?? 0,
             yearsOfExperience: technician?.yearsOfExperience ?? 0,
-          },
-        };
+          };
+        }
+
+        // الـ review بتاع الـ request ده (لو completed)
+        if (request.status === RequestStatus.COMPLETED) {
+          const review = reviewMap.get(request._id.toString());
+          result.review = review
+            ? { rating: review.rating, comment: review.comment }
+            : null;
+        }
+
+        return result;
       }),
     );
 
@@ -193,18 +218,18 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName governorate city')
-        .populate('serviceId', 'name priceRange')
-        .populate({
-          path: 'postId',
-          select: 'budget acceptedProposal title',
-          populate: { path: 'acceptedProposal', select: 'estimatedTime price' },
-        })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName governorate city')
+      .populate('serviceId', 'name priceRange')
+      .populate({
+        path: 'postId',
+        select: 'budget acceptedProposal title',
+        populate: { path: 'acceptedProposal', select: 'estimatedTime price' },
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -218,12 +243,12 @@ export class RequestService {
       throw new NotFoundException('Request not found');
 
     const request = await this.requestModel
-      .findById(requestId)
-      .populate('userId', 'fullName email ')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name priceRange')
-      .populate('assignedTechnician', 'fullName')
-      .exec();
+    .findById(requestId)
+    .populate('userId', 'fullName email ')
+    .populate('categoryId', 'name')
+    .populate('serviceId', 'name priceRange')
+    .populate('assignedTechnician', 'fullName')
+    .exec();
 
     if (!request)
       throw new NotFoundException(`Request #${requestId} not found`);
@@ -441,90 +466,90 @@ export class RequestService {
   //  → Notify TECHNICIAN when client cancels
   // ─────────────────────────────────────────────────────────────────────────
   async cancel(
-  requestId: string,
-  userId: string,
-  userRole: UserRole,
-  reason?: string,
-): Promise<RequestDocument> {
-  const request = await this.findById(requestId);
+    requestId: string,
+    userId: string,
+    userRole: UserRole,
+    reason?: string,
+  ): Promise<RequestDocument> {
+    const request = await this.findById(requestId);
 
-  if (
-    request.status === RequestStatus.ON_THE_WAY ||
-    request.status === RequestStatus.STARTED ||
-    request.status === RequestStatus.COMPLETED
-  )
-    throw new BadRequestException('Cannot cancel request at this stage');
+    if (
+      request.status === RequestStatus.ON_THE_WAY ||
+      request.status === RequestStatus.STARTED ||
+      request.status === RequestStatus.COMPLETED
+    )
+      throw new BadRequestException('Cannot cancel request at this stage');
 
-  if (userRole === UserRole.CLIENT) {
-    const requestUserId = this.getClientId(request);
-    if (requestUserId !== userId)
-      throw new ForbiddenException('You can only cancel your own requests');
-  }
-
-  if (userRole === UserRole.TECHNICIAN) {
-    const assignedId = this.getAssignedId(request);
-    if (!assignedId)
-      throw new BadRequestException('No technician assigned to this request');
-    if (assignedId !== userId)
-      throw new ForbiddenException(
-        'You can only cancel your assigned requests',
-      );
-  }
-
-  // Handle deposit: compensate technician if client cancelled after assignment, else refund client
-  const payment = await this.paymentService.getDepositPayment(requestId);
-  if (payment && payment.status === PaymentStatus.PAID) {
-    const assignedId = this.getAssignedId(request);
-
-    if (userRole === UserRole.CLIENT && assignedId) {
-      await this.paymentService.compensateTechnician(payment, assignedId);
-    } else {
-      await this.paymentService.refundDeposit(payment);
+    if (userRole === UserRole.CLIENT) {
+      const requestUserId = this.getClientId(request);
+      if (requestUserId !== userId)
+        throw new ForbiddenException('You can only cancel your own requests');
     }
-  }
 
-  request.status = RequestStatus.CANCELLED;
-  request.cancellation = {
-    cancelledBy: new Types.ObjectId(userId) as any,
-    role: userRole,
-    reason: reason ?? undefined,
-    cancelledAt: new Date(),
-  };
-  const savedRequest = await request.save();
-  this.chatGateway.closeRoom(requestId);
+    if (userRole === UserRole.TECHNICIAN) {
+      const assignedId = this.getAssignedId(request);
+      if (!assignedId)
+        throw new BadRequestException('No technician assigned to this request');
+      if (assignedId !== userId)
+        throw new ForbiddenException(
+          'You can only cancel your assigned requests',
+        );
+    }
 
-  // ── NOTIFICATION: cancellation alerts ────────────────────────────────────
-  const clientId    = this.getClientId(request);
-  const technicianId = this.getAssignedId(request);
-  const reasonText  = reason ? ` السبب: ${reason}` : '';
+    // Handle deposit: compensate technician if client cancelled after assignment, else refund client
+    const payment = await this.paymentService.getDepositPayment(requestId);
+    if (payment && payment.status === PaymentStatus.PAID) {
+      const assignedId = this.getAssignedId(request);
 
-  if (userRole === UserRole.CLIENT) {
-    // Client cancelled , notify the technician (if one was assigned)
-    if (technicianId) {
+      if (userRole === UserRole.CLIENT && assignedId) {
+        await this.paymentService.compensateTechnician(payment, assignedId);
+      } else {
+        await this.paymentService.refundDeposit(payment);
+      }
+    }
+
+    request.status = RequestStatus.CANCELLED;
+    request.cancellation = {
+      cancelledBy: new Types.ObjectId(userId) as any,
+      role: userRole,
+      reason: reason ?? undefined,
+      cancelledAt: new Date(),
+    };
+    const savedRequest = await request.save();
+    this.chatGateway.closeRoom(requestId);
+
+    // ── NOTIFICATION: cancellation alerts ────────────────────────────────────
+    const clientId = this.getClientId(request);
+    const technicianId = this.getAssignedId(request);
+    const reasonText = reason ? ` السبب: ${reason}` : '';
+
+    if (userRole === UserRole.CLIENT) {
+      // Client cancelled , notify the technician (if one was assigned)
+      if (technicianId) {
+        await this.notificationService.send({
+          recipientId: technicianId,
+          type: NotificationType.REQUEST_CANCELLED,
+          title: 'تم إلغاء الطلب ❌',
+          body: `قام العميل بإلغاء الطلب.${reasonText}`,
+          requestId,
+          metadata: { cancelledBy: userId, role: userRole, reason },
+        });
+      }
+    } else {
+      // Technician or Admin cancelled , notify the client
       await this.notificationService.send({
-        recipientId: technicianId,
+        recipientId: clientId,
         type: NotificationType.REQUEST_CANCELLED,
         title: 'تم إلغاء الطلب ❌',
-        body: `قام العميل بإلغاء الطلب.${reasonText}`,
+        body: `تم إلغاء طلبك.${reasonText}`,
         requestId,
         metadata: { cancelledBy: userId, role: userRole, reason },
       });
     }
-  } else {
-    // Technician or Admin cancelled , notify the client
-    await this.notificationService.send({
-      recipientId: clientId,
-      type: NotificationType.REQUEST_CANCELLED,
-      title: 'تم إلغاء الطلب ❌',
-      body: `تم إلغاء طلبك.${reasonText}`,
-      requestId,
-      metadata: { cancelledBy: userId, role: userRole, reason },
-    });
-  }
-  // ─────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────
 
-  return savedRequest;
-}
+    return savedRequest;
+  }
 
   async delete(requestId: string): Promise<{ message: string }> {
     if (!Types.ObjectId.isValid(requestId))
@@ -555,14 +580,14 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -571,4 +596,3 @@ export class RequestService {
     };
   }
 }
-
