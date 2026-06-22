@@ -34,8 +34,7 @@ export class PaymobService {
           email: user.email,
           phone_number: user.phone ?? 'N/A',
         },
-        // redirection_url: `http://localhost:3001/client/tracking/${requestId}`,
-        redirection_url: `${FRONTEND_URL}/client/orders`,
+        redirection_url: `${FRONTEND_URL}${redirectPath ?? '/client/orders'}`,
       },
       {
         headers: {
