@@ -59,6 +59,10 @@ export class Technician {
 
   @Prop({ type: TechnicianSpecializationSchema, default: null })
   specialization: TechnicianSpecialization;
+  // ========== PROFILE (editable) ==========
+
+@Prop({ trim: true, default: '' })
+jobTitle: string;
 
   // ========== step3 ===========
   @Prop({ min: 0, default: 0 })

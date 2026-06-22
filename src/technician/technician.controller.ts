@@ -12,6 +12,7 @@ import {
   UploadedFiles,
   BadRequestException,
   Get,
+  Patch,
 } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { FileFieldsInterceptor } from '@nestjs/platform-express';
@@ -31,6 +32,7 @@ import {
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
+import { UpdateWorkInfoDto } from './dto/update-work-info.dto';
 
 @ApiTags('Technician')
 @ApiBearerAuth('JWT')
@@ -160,4 +162,8 @@ export class TechnicianController {
   dashboard(@Req() req) {
     return this.technicianService.getDashboard(req.user.userId);
   }
+  @Patch('work-info')
+updateWorkInfo(@Req() req, @Body() dto: UpdateWorkInfoDto) {
+  return this.technicianService.updateWorkInfo(req.user.userId, dto);
+}
 }
