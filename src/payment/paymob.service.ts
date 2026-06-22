@@ -18,6 +18,7 @@ export class PaymobService {
     user: { email: string; fullName: string; phone: string },
     integrationIds: number[],
     requestId: string,
+    redirectPath?: string, 
   ): Promise<{ paymentUrl: string; orderId: string }> {
     const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
     const res = await axios.post(
@@ -54,6 +55,7 @@ export class PaymobService {
     amount: number,
     user: { email: string; fullName: string; phone: string },
     requestId: string,
+    redirectPath?: string,
   ): Promise<{ paymentUrl: string; orderId: string }> {
     return this.createIntention(
       amount,
@@ -64,6 +66,7 @@ export class PaymobService {
         parseInt(this.instapayIntegrationId!),
       ],
       requestId,
+      redirectPath,
     );
   }
 
