@@ -19,6 +19,7 @@ export class PaymobService {
     integrationIds: number[],
     requestId: string,
   ): Promise<{ paymentUrl: string; orderId: string }> {
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
     const res = await axios.post(
       'https://accept.paymob.com/v1/intention/',
       {
@@ -33,7 +34,7 @@ export class PaymobService {
           phone_number: user.phone ?? 'N/A',
         },
         // redirection_url: `http://localhost:3001/client/tracking/${requestId}`,
-        redirection_url: `http://localhost:3001/client/orders`,
+        redirection_url: `${FRONTEND_URL}/client/orders`,
       },
       {
         headers: {
@@ -96,9 +97,9 @@ export class PaymobService {
 
     const string = values.join('');
     const hash = crypto
-      .createHmac('sha512', this.hmacSecret!)
-      .update(string)
-      .digest('hex');
+    .createHmac('sha512', this.hmacSecret!)
+    .update(string)
+    .digest('hex');
 
     return hash === hmac;
   }
@@ -124,7 +125,4 @@ export class PaymobService {
       throw new BadRequestException(res.data.message ?? 'Refund failed');
     }
   }
-
-
-
 }
