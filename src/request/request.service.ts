@@ -149,7 +149,7 @@ export class RequestService {
       .find(filter)
       .populate('categoryId', 'name')
       .populate('serviceId', 'name priceRange image') // ← أضيفي image
-      .populate('assignedTechnician', 'fullName phone')
+      .populate('assignedTechnician', 'fullName phone ')
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)
@@ -181,13 +181,14 @@ export class RequestService {
         if (request.assignedTechnician) {
           const technician = await this.technicianModel
           .findOne({ userId: (request.assignedTechnician as any)._id })
-          .select('averageRating yearsOfExperience')
+          .select('averageRating yearsOfExperience totalReviews')
           .lean();
 
           result.assignedTechnician = {
             ...(request.assignedTechnician as any),
             averageRating: technician?.averageRating ?? 0,
             yearsOfExperience: technician?.yearsOfExperience ?? 0,
+            totalReviews: technician?.totalReviews ?? 0,
           };
         }
 
