@@ -30,7 +30,7 @@ import { User, UserDocument, UserRole } from 'src/users/schemas/user.schema';
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/enums/notification-type.enum';
 // ─────────────────────────────────────────────────────────────────────────────
-
+import { GroqProvider } from '../ai/providers/groq.provider';
 @Injectable()
 export class PostService {
   constructor(
@@ -42,8 +42,43 @@ export class PostService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly chatGateway: ChatGateway,
     private readonly notificationService: NotificationService,
+    private readonly groq: GroqProvider,
   ) {}
 
+  // ─── Suggest Title via AI (CLIENT) ────────────────────────────────────────
+  async suggestTitle(description: string): Promise<string> {
+    const prompt = `
+أنت مساعد في منصة خدمات منزلية مصرية.
+مهمتك: اقرأ وصف المشكلة التالية وأنشئ عنواناً مختصراً وواضحاً لطلب الخدمة.
+
+قواعد العنوان:
+- باللغة العربية فقط
+- من 3 إلى 7 كلمات
+- محدد ويوضح نوع الخدمة المطلوبة بدقة
+- بدون علامات ترقيم أو رموز أو أقواس
+- لا تبدأ بـ "طلب" أو "خدمة"، ابدأ مباشرة بالفعل أو الاسم
+
+وصف المشكلة:
+${description}
+
+أرجع العنوان فقط، بدون أي نص إضافي أو شرح أو تفسير.
+`.trim();
+
+    try {
+      const raw = await this.groq.ask(prompt);
+      // Clean up: trim whitespace, remove surrounding quotes, take first line only
+      const title = raw
+        .trim()
+        .split('\n')[0]
+        .replace(/^["'"""'']|["'"""'']$/g, '')
+        .trim();
+      return title || description.slice(0, 60);
+    } catch {
+      return description.slice(0, 60);
+    }
+  }
+
+  
   // ─── Create Post (CLIENT) ─────────────────────────────────────────────────
   async createPost(
     userId: string,

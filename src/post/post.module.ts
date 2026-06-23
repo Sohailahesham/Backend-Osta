@@ -12,6 +12,7 @@ import {
 } from 'src/technician/schemas/technician.schema';
 import { NotificationModule } from 'src/notification/notification.module';
 import { User, UserSchema } from 'src/users/schemas/user.schema';
+import { AiModule } from '../ai/ai.module';
 
 @Module({
   imports: [
@@ -23,7 +24,8 @@ import { User, UserSchema } from 'src/users/schemas/user.schema';
       { name: User.name, schema: UserSchema },
     ]),
     ChatModule,
-    NotificationModule
+    NotificationModule,
+    AiModule,
   ],
   controllers: [PostController],
   providers: [PostService],
