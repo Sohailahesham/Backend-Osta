@@ -17,7 +17,7 @@ import { RoleDecorator as Roles } from '../common/decorators/role.decorator';
 import { UserRole } from '../users/schemas/user.schema';
 import { ApiTags, ApiBearerAuth, ApiOperation } from '@nestjs/swagger';
 
-
+import { SuggestTitleDto } from './dto/suggest-title.dto';
 const postStorage = diskStorage({
   destination: (req: any, file, cb) => {
     const userId = req.user.userId;
@@ -106,6 +106,15 @@ async createPost(
     return this.postService.findPendingCustomRequestsForTechnician(
       req.user.userId,
     );
+  }
+  // POST /posts/suggest-title ← CLIENT
+  @ApiOperation({ summary: '[Client] Suggest a title from description using AI' })
+  @Post('suggest-title')
+  @UseGuards(RolesGuard)
+  @Roles(UserRole.CLIENT)
+  async suggestTitle(@Body() dto: SuggestTitleDto) {
+    const title = await this.postService.suggestTitle(dto.description);
+    return { title };
   }
 
   // GET /posts/:id

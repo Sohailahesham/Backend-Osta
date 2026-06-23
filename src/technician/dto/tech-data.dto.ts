@@ -71,6 +71,14 @@ export class TechnicianDataDto {
 
   @Expose()
   criminalRecordImage?: string;
+  @Expose()
+verificationStatus: string;
+
+@Expose()
+verifiedAt?: Date;
+
+@Expose()
+rejectionReason?: string;
 
   @Expose()
 jobTitle: string;

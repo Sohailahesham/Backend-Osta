@@ -22,7 +22,7 @@ import { PostModule } from './post/post.module';
 import { ChatModule } from './chat/chat.module';
 
 import { SupportModule } from './support/support.module';
-
+import { TechCompanionModule } from './tech-companion/tech-companion.module';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
@@ -50,8 +50,8 @@ import { SupportModule } from './support/support.module';
     PostModule,
     ChatModule,
     MaintenanceShopsModule,
-    PostModule,
     SupportModule,
+    TechCompanionModule,
   ],
   controllers: [AppController],
   providers: [AppService],
