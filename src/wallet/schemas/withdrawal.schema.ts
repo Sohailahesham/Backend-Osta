@@ -12,6 +12,7 @@ export enum WithdrawalStatus {
 export enum WithdrawalMethod {
   INSTAPAY = 'instapay',
   VODAFONE_CASH = 'vodafone_cash',
+   VISA = 'visa',
 }
 
 @Schema({ timestamps: true })
