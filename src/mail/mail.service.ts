@@ -1,4 +1,8 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import type { Transporter } from 'nodemailer';
@@ -18,7 +22,9 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      service: 'gmail',
+      host: 'smtp.gmail.com',
+      port: 587,
+      secure: false,
       auth: {
         user: this.getEnvValue('MAIL_USER'),
         pass: this.getEnvValue('MAIL_PASS'),
@@ -206,8 +212,12 @@ style="max-width:180px;height:auto;margin-bottom:30px;"  />
             🧾
           </div>
           <h2 style="color: #1b5e20; margin-top: 25px">فاتورة مدفوعة بالكامل</h2>
-          <p style="color: #888; font-size: 14px;">رقم الفاتورة: <strong style="color: #1b5e20;">${data.invoiceNumber}</strong></p>
-          <p style="color: #888; font-size: 14px;">التاريخ: <strong>${new Date(data.createdAt).toLocaleDateString('ar-EG')}</strong></p>
+          <p style="color: #888; font-size: 14px;">رقم الفاتورة: <strong style="color: #1b5e20;">${
+            data.invoiceNumber
+          }</strong></p>
+          <p style="color: #888; font-size: 14px;">التاريخ: <strong>${new Date(
+            data.createdAt,
+          ).toLocaleDateString('ar-EG')}</strong></p>
         </div>
 
         <!-- Details -->
@@ -215,14 +225,22 @@ style="max-width:180px;height:auto;margin-bottom:30px;"  />
           
           <!-- Client & Technician -->
           <div style="background: #f9f9f9; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-            <p style="margin: 0 0 10px; color: #555;"><strong>👤 العميل:</strong> ${data.clientName}</p>
-            <p style="margin: 0 0 10px; color: #555;"><strong>🔧 الفني:</strong> ${data.technicianName}</p>
-            <p style="margin: 0; color: #555;"><strong>🛠️ الخدمة:</strong> ${data.serviceName}</p>
+            <p style="margin: 0 0 10px; color: #555;"><strong>👤 العميل:</strong> ${
+              data.clientName
+            }</p>
+            <p style="margin: 0 0 10px; color: #555;"><strong>🔧 الفني:</strong> ${
+              data.technicianName
+            }</p>
+            <p style="margin: 0; color: #555;"><strong>🛠️ الخدمة:</strong> ${
+              data.serviceName
+            }</p>
           </div>
 
           <!-- Completion Note -->
           <div style="background: #f9f9f9; border-radius: 12px; padding: 20px; margin-bottom: 20px;">
-            <p style="margin: 0; color: #555;"><strong>📝 ملاحظات:</strong> ${data.completionNote}</p>
+            <p style="margin: 0; color: #555;"><strong>📝 ملاحظات:</strong> ${
+              data.completionNote
+            }</p>
           </div>
 
           <!-- Payment Summary -->
@@ -233,15 +251,21 @@ style="max-width:180px;height:auto;margin-bottom:30px;"  />
             <table style="width: 100%; border-collapse: collapse;">
               <tr>
                 <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555;">العربون المدفوع</td>
-                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555; text-align: left;">${data.depositAmount} جنيه</td>
+                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555; text-align: left;">${
+                  data.depositAmount
+                } جنيه</td>
               </tr>
               <tr>
                 <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555;">المبلغ المتبقي المدفوع</td>
-                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555; text-align: left;">${data.remainingAmount} جنيه</td>
+                <td style="padding: 12px 20px; border-bottom: 1px solid #eee; color: #555; text-align: left;">${
+                  data.remainingAmount
+                } جنيه</td>
               </tr>
               <tr style="background: #e8f5e9;">
                 <td style="padding: 12px 20px; font-weight: bold; color: #1b5e20;">الإجمالي</td>
-                <td style="padding: 12px 20px; font-weight: bold; color: #1b5e20; text-align: left;">${data.totalPrice} جنيه</td>
+                <td style="padding: 12px 20px; font-weight: bold; color: #1b5e20; text-align: left;">${
+                  data.totalPrice
+                } جنيه</td>
               </tr>
             </table>
           </div>
@@ -322,18 +346,15 @@ style="max-width:180px;height:auto;margin-bottom:30px;"  />
     });
   }
 
-
-
-
   async sendCompensationEmail(
-  email: string,
-  data: { technicianName: string; amount: number },
-) {
-  await this.transporter.sendMail({
-    from: `"Osta App" <${process.env.MAIL_USER}>`,
-    to: email,
-    subject: 'تعويض إلغاء طلب - اسطي',
-    html: `
+    email: string,
+    data: { technicianName: string; amount: number },
+  ) {
+    await this.transporter.sendMail({
+      from: `"Osta App" <${process.env.MAIL_USER}>`,
+      to: email,
+      subject: 'تعويض إلغاء طلب - اسطي',
+      html: `
 <!doctype html>
 <html lang="ar" dir="rtl">
   <body>
