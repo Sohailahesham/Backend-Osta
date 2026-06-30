@@ -48,7 +48,10 @@ export class MailService {
   private createTransporter(): Transporter {
     if (this.provider === 'gmail') {
       return nodemailer.createTransport({
-        service: 'gmail',
+        host: 'smtp.gmail.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
         auth: {
           user: this.getEnvValue('GMAIL_USER'),
           pass: this.getEnvValue('GMAIL_APP_PASSWORD'),
