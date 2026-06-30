@@ -24,8 +24,8 @@ export class MailService {
     console.log({
       host: 'smtp-relay.brevo.com',
       port: 587,
-      user: process.env.BREVO_USER,
-      keyExists: !!process.env.BREVO_SMTP_KEY,
+      user: this.getEnvValue('BREVO_USER'),
+      keyExists: !!this.getEnvValue('BREVO_SMTP_KEY'),
     });
 
     this.transporter = nodemailer.createTransport({
@@ -37,8 +37,8 @@ export class MailService {
       greetingTimeout: 10000,
       socketTimeout: 10000,
       auth: {
-        user: process.env.BREVO_USER,
-        pass: process.env.BREVO_SMTP_KEY,
+        user: this.getEnvValue('BREVO_USER'),
+        pass: this.getEnvValue('BREVO_SMTP_KEY'),
       },
     });
     this.transporter.verify((error) => {
