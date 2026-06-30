@@ -21,10 +21,21 @@ export class MailService {
   private transporter: Transporter;
 
   constructor(private readonly configService: ConfigService) {
+    console.log({
+      host: 'smtp-relay.brevo.com',
+      port: 587,
+      user: process.env.BREVO_USER,
+      keyExists: !!process.env.BREVO_SMTP_KEY,
+    });
+
     this.transporter = nodemailer.createTransport({
       host: 'smtp-relay.brevo.com',
       port: 587,
       secure: false,
+      requireTLS: true,
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
       auth: {
         user: process.env.BREVO_USER,
         pass: process.env.BREVO_SMTP_KEY,
