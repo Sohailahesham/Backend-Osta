@@ -3,98 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>رمز التحقق - أوسطا</title>
+    <title>{{TITLE}}</title>
   </head>
-  <body>
-    <div
-      style="
-        margin: 0;
-        padding: 40px 20px;
-        background: #f4f8f4;
-        font-family:
-          Segoe UI,
-          Arial,
-          sans-serif;
-        direction: rtl;
-        text-align: right;
-      "
-    >
-      <div
-        style="
-          max-width: 600px;
-          margin: auto;
-          background: #ffffff;
-          border-radius: 20px;
-          overflow: hidden;
-          box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-        "
-      >
-        <!-- Header -->
-        <div style="background: #1b5e20; padding: 30px; text-align: center">
-<img
-  src="cid:osta-logo"
-  alt="أوسطا"
- style="max-width:180px;height:auto;margin-bottom:30px;"
-/>          <p style="color: #d8ead9; margin-top: 10px; font-size: 15px">
-            منصة الخدمات الاحترافية
-          </p>
+  <body style="margin:0; padding:0; background:#F1F7E7;">
+    <div style="margin:0; padding:40px 20px; background:#F1F7E7; font-family:'Segoe UI',Tahoma,Arial,sans-serif; direction:rtl; text-align:right;">
+      <div style="max-width:600px; margin:auto; background:#ffffff; border-radius:20px; overflow:hidden; box-shadow:0 10px 30px rgba(28,75,65,0.12);">
+
+        <div style="height:6px; background:linear-gradient(to right, #1C4B41 0%, #457546 14%, #6FA143 29%, #85B83D 36%, #9CCF32 43%, #B3E718 50%, #B3E718 100%);"></div>
+
+        <div style="padding:30px 30px 20px; text-align:center; background:#ffffff;">
+          <img src="cid:osta-logo" alt="أسطى" style="max-width:160px; height:auto;" />
+          <p style="color:#636261; margin-top:10px; font-size:14px;">منصة الخدمات الاحترافية</p>
         </div>
 
-        <!-- Content -->
-        <div style="padding: 40px 30px; text-align: center">
-          <div
-            style="
-              width: 90px;
-              height: 90px;
-              margin: auto;
-              border-radius: 50%;
-              background: #e8f5e9;
-              line-height: 90px;
-              font-size: 42px;
-            "
-          >
-            ✉️
+        <div style="padding:35px 30px; text-align:center;">
+          <div style="width:84px; height:84px; margin:auto; border-radius:50%; background:#F1F7E7; line-height:84px; font-size:38px;">🔐</div>
+
+          <h2 style="color:#1C4B41; margin-top:25px; font-size:22px;">{{HEADER}}</h2>
+
+          <p style="color:#636261; line-height:1.8; font-size:15px; margin-top:15px;">
+            {{MESSAGE}}
+          </p>
+
+          <div style="margin:30px auto; display:inline-block; background:#F1F7E7; border:2px dashed #B3E718; border-radius:14px; padding:18px 40px;">
+            <span style="font-size:32px; font-weight:800; letter-spacing:8px; color:#1C4B41; direction:ltr; unicode-bidi:bidi-override;">{{OTP}}</span>
           </div>
 
-          <h2 style="color: #1b5e20; margin-top: 25px">رمز التحقق</h2>
-
-          <div
-            style="
-              font-size: 42px;
-              font-weight: bold;
-              letter-spacing: 10px;
-              color: #1b5e20;
-              background: #e8f5e9;
-              padding: 18px 30px;
-              border-radius: 12px;
-              margin: 25px 0;
-              display: inline-block;
-            "
-          >
-            {{OTP}}
-          </div>
-
-          <p style="margin-top: 25px; color: #888; font-size: 14px">
-            هذا الرمز صالح لمدة <strong>10 دقائق</strong>
+          <p style="margin-top:10px; color:#636261; font-size:13px;">
+            {{NOTE}}
           </p>
         </div>
 
-        <!-- Footer -->
-        <div
-          style="
-            background: #fafafa;
-            padding: 20px;
-            text-align: center;
-            border-top: 1px solid #eee;
-          "
-        >
-          <p style="color: #888; font-size: 13px; margin: 0">
-            منصة أسطي © 2026
-          </p>
-          <p style="color: #aaa; font-size: 12px; margin-top: 8px">
-            إذا لم تطلب هذا الرمز يمكنك تجاهل الرسالة بأمان.
-          </p>
+        <div style="background:#F1F7E7; padding:20px; text-align:center; border-top:1px solid #e5ece0;">
+          <p style="color:#636261; font-size:13px; margin:0;">{{FOOTER}}</p>
+          <p style="color:#9a9a9a; font-size:12px; margin-top:8px;">منصة أسطى © 2026</p>
         </div>
+
       </div>
     </div>
   </body>
