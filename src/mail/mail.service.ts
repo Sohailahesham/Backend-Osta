@@ -22,13 +22,20 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
+      host: 'smtp-relay.brevo.com',
       port: 587,
       secure: false,
       auth: {
-        user: this.getEnvValue('MAIL_USER'),
-        pass: this.getEnvValue('MAIL_PASS'),
+        user: process.env.BREVO_USER,
+        pass: process.env.BREVO_SMTP_KEY,
       },
+    });
+    this.transporter.verify((error) => {
+      if (error) {
+        console.error('SMTP VERIFY ERROR:', error);
+      } else {
+        console.log('SMTP Server is ready');
+      }
     });
   }
 
@@ -75,7 +82,7 @@ export class MailService {
 <div class="logo">
   <img
     src="cid:osta-logo"
-    alt="أوسطا"
+    alt="أسطى"
 style="max-width:180px;height:auto;margin-bottom:30px;"  />
 </div>
           <p style="color:#d8ead9; margin-top:10px; font-size:15px;">
@@ -128,7 +135,7 @@ style="max-width:180px;height:auto;margin-bottom:30px;"  />
       TITLE: 'إعادة تعيين كلمة المرور',
       HEADER: 'رمز التحقق الخاص بك',
       MESSAGE:
-        'استخدم هذا الرمز لإعادة تعيين كلمة المرور الخاصة بحسابك في أوسطا.',
+        'استخدم هذا الرمز لإعادة تعيين كلمة المرور الخاصة بحسابك في أسطى.',
       NOTE: 'هذا الرمز صالح لفترة قصيرة فقط ولا تشاركه مع أي شخص.',
       FOOTER:
         'إذا لم تطلب إعادة تعيين كلمة المرور، يمكنك تجاهل هذا البريد بأمان.',
