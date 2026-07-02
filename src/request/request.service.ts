@@ -147,9 +147,11 @@ export class RequestService {
     const [data, total] = await Promise.all([
       this.requestModel
       .find(filter)
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name priceRange image') // ← أضيفي image
+      .populate('categoryId', 'name image')
+      .populate('serviceId', 'name priceRange image')
       .populate('assignedTechnician', 'fullName phone ')
+        .populate('postId', 'title budget acceptedProposal status image')
+        
       .sort({ createdAt: -1 })
       .skip((page - 1) * limit)
       .limit(limit)

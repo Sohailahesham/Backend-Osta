@@ -14,7 +14,6 @@ export class VerifiedEmailGuard implements CanActivate {
     @InjectModel(User.name) private readonly userModel: Model<UserDocument>,
   ) {}
 
-  
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const userId = req.user?.userId;
@@ -23,12 +22,12 @@ export class VerifiedEmailGuard implements CanActivate {
       throw new ForbiddenException('Authentication is required');
     }
 
-    const user = await this.userModel.findById(userId).select('isVerified');
-    if (!user?.isVerified) {
-      throw new ForbiddenException(
-        'Please verify your email before continuing registration',
-      );
-    }
+    // const user = await this.userModel.findById(userId).select('isVerified');
+    // if (!user?.isVerified) {
+    //   throw new ForbiddenException(
+    //     'Please verify your email before continuing registration',
+    //   );
+    // }
 
     return true;
   }
