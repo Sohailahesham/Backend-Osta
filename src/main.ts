@@ -18,10 +18,12 @@ async function bootstrap() {
     }),
   );
 
+  const frontendUrl =
+    process.env.FRONTEND_URL || 'https://osta-frontend.vercel.app';
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useStaticAssets(join(__dirname, '..', 'uploads'), { prefix: '/uploads' });
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:3000'],
+    origin: ['http://localhost:3001', 'http://localhost:3000', frontendUrl],
     credentials: true,
   });
 
