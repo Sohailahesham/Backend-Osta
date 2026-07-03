@@ -45,7 +45,7 @@ export class PaymentService {
     // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
     private readonly notificationService: NotificationService,
     // ─────────────────────────────────────────────────────────────────────────
-  ) {}
+  ) { }
 
   async payDeposit(requestId: string, userId: string) {
     const request = await this.requestModel.findById(requestId);
@@ -163,6 +163,7 @@ export class PaymentService {
             { new: true },
           )
           .populate('assignedTechnician', '_id');
+          
 
         await this.invoiceService.markAsPaid(payment.requestId.toString());
 
@@ -170,16 +171,23 @@ export class PaymentService {
           payment.requestId.toString(),
         );
 
-        // NOTIFICATION , tell the technician the full amount has been received
         if (updatedRequest?.assignedTechnician) {
           const technicianUserId = (
             updatedRequest.assignedTechnician as any
           )._id?.toString();
 
+          
+
+          await this.walletService.creditTechnician(
+            technicianUserId,
+            updatedRequest.totalPrice,
+            payment.requestId.toString(),
+          );
+
           await this.notificationService.send({
             recipientId: technicianUserId,
             type: NotificationType.REMAINING_PAID,
-            title: 'تم استلام المبلغ كاملاً ✅',
+            title: 'تم استلام المبلغ كاملاً ',
             body: `قام العميل بسداد المبلغ المتبقي. إجمالي المبلغ: ${updatedRequest.totalPrice} ج.م.`,
             requestId: payment.requestId.toString(),
             metadata: {
@@ -189,7 +197,6 @@ export class PaymentService {
             },
           });
         }
-        // ──────────────────────────────────────────────────────────────────
 
         return { message: 'Payment successful', invoice };
       }

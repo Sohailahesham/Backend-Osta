@@ -22,7 +22,7 @@ export class InvoiceService {
     @InjectModel(MainRequest.name) private requestModel: Model<RequestDocument>,
     private mailService: MailService,
     private walletService: WalletService,
-  ) {}
+  ) { }
 
   async createFromRequest(requestId: string): Promise<InvoiceDocument> {
     const request = await this.requestModel
@@ -58,6 +58,7 @@ export class InvoiceService {
 
     return invoice;
   }
+
   async markAsPaid(requestId: string): Promise<void> {
     let invoice = (await this.invoiceModel
       .findOne({
@@ -95,12 +96,6 @@ export class InvoiceService {
         remainingAmount: invoice.remainingAmount,
         createdAt: invoice.createdAt,
       });
-      const technician = request.assignedTechnician as any;
-      await this.walletService.creditTechnician(
-        technician?._id?.toString() ?? technician?.toString(),
-        request.totalPrice,
-        requestId,
-      );
     }
   }
 
