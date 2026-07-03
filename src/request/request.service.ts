@@ -44,7 +44,7 @@ export class RequestService {
     private readonly technicianModel: Model<TechnicianDocument>,
     // ── NOTIFICATION SERVICE ─────────────────────────────────────────────────
     private readonly notificationService: NotificationService, // ─────────────────────────────────────────────────────────────────────────
-  ) { }
+  ) {}
 
   // ─── helpers ──────────────────────────────────────────────────────────────
 
@@ -185,6 +185,7 @@ export class RequestService {
           .findOne({ userId: (request.assignedTechnician as any)._id })
           .select('averageRating yearsOfExperience totalReviews')
           .lean();
+
           result.assignedTechnician = {
             ...(request.assignedTechnician as any),
             averageRating: technician?.averageRating ?? 0,
@@ -299,7 +300,7 @@ export class RequestService {
 
     return {
       message:
-        'Request accepted successfully. the client must pay the deposit to proceed.',
+        'Request accepted successfully. Please pay the deposit to proceed.',
       depositAmount: request.depositAmount,
       request,
     };
