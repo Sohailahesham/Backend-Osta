@@ -13,14 +13,12 @@ export class WalletService {
     @InjectModel(Withdrawal.name) private withdrawalModel: Model<WithdrawalDocument>,
   ) {}
 
-  // يعمل wallet للفني لما يسجل
   async createWallet(userId: string): Promise<WalletDocument> {
     return this.walletModel.create({
       userId: new Types.ObjectId(userId),
     });
   }
 
-  // بعد ما الشغل يخلص ويتدفع
   async creditTechnician(userId: string, totalPrice: number, requestId: string) {
     const commission = totalPrice * COMMISSION_RATE;
     const technicianAmount = totalPrice - commission;
@@ -45,7 +43,6 @@ export class WalletService {
     return wallet;
   }
 
-  // الفني يشوف رصيده
   async getWallet(userId: string) {
     const wallet = await this.walletModel
       .findOne({ userId: new Types.ObjectId(userId) })
@@ -56,7 +53,6 @@ export class WalletService {
     return wallet;
   }
 
-  // الفني يطلب سحب
   async requestWithdrawal(
     userId: string,
     amount: number,
