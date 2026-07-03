@@ -71,4 +71,28 @@ export class TechnicianDataDto {
 
   @Expose()
   criminalRecordImage?: string;
+  @Expose()
+verificationStatus: string;
+
+@Expose()
+verifiedAt?: Date;
+
+@Expose()
+rejectionReason?: string;
+
+  @Expose()
+jobTitle: string;
+
+@Expose()
+@Transform(({ obj }) => obj.specialization?.categoryId?._id?.toString())
+categoryId: string;
+
+@Expose()
+@Transform(({ obj }) =>
+  (obj.specialization?.serviceIds ?? []).map((s: any) => ({
+    id: s._id?.toString(),
+    name: s.name,
+  })),
+)
+services: { id: string; name: string }[];
 }

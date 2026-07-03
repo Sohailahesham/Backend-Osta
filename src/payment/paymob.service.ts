@@ -18,7 +18,9 @@ export class PaymobService {
     user: { email: string; fullName: string; phone: string },
     integrationIds: number[],
     requestId: string,
+    redirectPath?: string, 
   ): Promise<{ paymentUrl: string; orderId: string }> {
+    const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
     const res = await axios.post(
       'https://accept.paymob.com/v1/intention/',
       {
@@ -32,8 +34,7 @@ export class PaymobService {
           email: user.email,
           phone_number: user.phone ?? 'N/A',
         },
-        // redirection_url: `http://localhost:3001/client/tracking/${requestId}`,
-        redirection_url: `http://localhost:3001/client/orders`,
+        redirection_url: `${FRONTEND_URL}${redirectPath ?? '/client/orders'}`,
       },
       {
         headers: {
@@ -53,6 +54,7 @@ export class PaymobService {
     amount: number,
     user: { email: string; fullName: string; phone: string },
     requestId: string,
+    redirectPath?: string,
   ): Promise<{ paymentUrl: string; orderId: string }> {
     return this.createIntention(
       amount,
@@ -63,6 +65,7 @@ export class PaymobService {
         parseInt(this.instapayIntegrationId!),
       ],
       requestId,
+      redirectPath,
     );
   }
 
@@ -96,9 +99,9 @@ export class PaymobService {
 
     const string = values.join('');
     const hash = crypto
-      .createHmac('sha512', this.hmacSecret!)
-      .update(string)
-      .digest('hex');
+    .createHmac('sha512', this.hmacSecret!)
+    .update(string)
+    .digest('hex');
 
     return hash === hmac;
   }
@@ -124,7 +127,4 @@ export class PaymobService {
       throw new BadRequestException(res.data.message ?? 'Refund failed');
     }
   }
-
-
-
 }

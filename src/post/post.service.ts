@@ -30,7 +30,7 @@ import { User, UserDocument, UserRole } from 'src/users/schemas/user.schema';
 import { NotificationService } from 'src/notification/notification.service';
 import { NotificationType } from 'src/notification/enums/notification-type.enum';
 // ─────────────────────────────────────────────────────────────────────────────
-
+import { GroqProvider } from '../ai/providers/groq.provider';
 @Injectable()
 export class PostService {
   constructor(
@@ -42,7 +42,41 @@ export class PostService {
     @InjectModel(User.name) private userModel: Model<UserDocument>,
     private readonly chatGateway: ChatGateway,
     private readonly notificationService: NotificationService,
+    private readonly groq: GroqProvider,
   ) {}
+
+  // ─── Suggest Title via AI (CLIENT) ────────────────────────────────────────
+  async suggestTitle(description: string): Promise<string> {
+    const prompt = `
+أنت مساعد في منصة خدمات منزلية مصرية.
+مهمتك: اقرأ وصف المشكلة التالية وأنشئ عنواناً مختصراً وواضحاً لطلب الخدمة.
+
+قواعد العنوان:
+- باللغة العربية فقط
+- من 3 إلى 7 كلمات
+- محدد ويوضح نوع الخدمة المطلوبة بدقة
+- بدون علامات ترقيم أو رموز أو أقواس
+- لا تبدأ بـ "طلب" أو "خدمة"، ابدأ مباشرة بالفعل أو الاسم
+
+وصف المشكلة:
+${description}
+
+أرجع العنوان فقط، بدون أي نص إضافي أو شرح أو تفسير.
+`.trim();
+
+    try {
+      const raw = await this.groq.ask(prompt);
+      // Clean up: trim whitespace, remove surrounding quotes, take first line only
+      const title = raw
+      .trim()
+      .split('\n')[0]
+      .replace(/^["'"""'']|["'"""'']$/g, '')
+      .trim();
+      return title || description.slice(0, 60);
+    } catch {
+      return description.slice(0, 60);
+    }
+  }
 
   // ─── Create Post (CLIENT) ─────────────────────────────────────────────────
   async createPost(
@@ -63,39 +97,68 @@ export class PostService {
   // ─── Get All Open Posts (TECHNICIAN) ──────
   // ────────────────────────────────
 
-  async findAllOpen(page = 1, limit = 10) {
+  async findAllOpen(technicianUserId: string, page = 1, limit = 10) {
+    if (!Types.ObjectId.isValid(technicianUserId)) {
+      throw new BadRequestException('Invalid technician id');
+    }
+
+    const technician = await this.technicianModel
+    .findOne({ userId: new Types.ObjectId(technicianUserId) })
+    .select('specialization.categoryId')
+    .lean()
+    .exec();
+
+    if (!technician) throw new NotFoundException('Technician not found');
+
+    const specializationCategoryId = technician.specialization?.categoryId;
+    if (!specializationCategoryId) {
+      return {
+        data: [],
+        total: 0,
+        page,
+        limit,
+        totalPages: 0,
+      };
+    }
+
+    const filter = {
+      status: PostStatus.OPEN,
+      categoryId: new Types.ObjectId(specializationCategoryId),
+    };
+
     const [posts, total] = await Promise.all([
       this.postModel
-        .find({ status: PostStatus.OPEN })
-        .populate('userId', '-password -refreshToken')
-        .sort({ isEmergency: -1, createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
-      this.postModel.countDocuments({ status: PostStatus.OPEN }),
+      .find(filter)
+      .populate('userId', '-password -refreshToken')
+      .populate('categoryId', 'name')
+      .sort({ isEmergency: -1, createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
+      this.postModel.countDocuments(filter),
     ]);
 
     const postsWithProposals = await Promise.all(
       posts.map(async (post) => {
         const proposals = await this.proposalModel
-          .find({ postId: post._id })
-          .lean()
-          .exec();
+        .find({ postId: post._id })
+        .lean()
+        .exec();
 
         const proposalsWithTechnicianData = await Promise.all(
           proposals.map(async (proposal) => {
             const technicianUser = await this.userModel
-              .findById(proposal.technicianId)
-              .select('-password -refreshToken')
-              .lean();
+            .findById(proposal.technicianId)
+            .select('-password -refreshToken')
+            .lean();
 
             const technicianProfile = await this.technicianModel
-              .findOne({ userId: proposal.technicianId })
-              .select(
-                '-personalImage -specialization -role -provider -rejectionReason -idBackImage -idFrontImage',
-              )
-              .lean();
+            .findOne({ userId: proposal.technicianId })
+            .select(
+              '-personalImage -specialization -role -provider -rejectionReason -idBackImage -idFrontImage',
+            )
+            .lean();
 
             return {
               ...proposal,
@@ -107,7 +170,16 @@ export class PostService {
           }),
         );
 
-        return { ...post, proposals: proposalsWithTechnicianData ,proposalsCount: proposalsWithTechnicianData.length};
+        const hasApplied = proposals.some(
+          (proposal) => proposal.technicianId.toString() === technicianUserId,
+        );
+
+        return {
+          ...post,
+          proposals: proposalsWithTechnicianData,
+          proposalsCount: proposalsWithTechnicianData.length,
+          hasApplied,
+        };
       }),
     );
 
@@ -122,162 +194,163 @@ export class PostService {
 
   async findAssignedCustomRequests(technicianId: string) {
     const proposals = await this.proposalModel
-      .find({
-        technicianId: new Types.ObjectId(technicianId),
-        status: ProposalStatus.ACCEPTED,
-      })
-      .populate({
-        path: 'postId',
-        populate: { path: 'userId', select: 'fullName phone governorate city' },
-      })
-      .lean()
-      .exec();
+    .find({
+      technicianId: new Types.ObjectId(technicianId),
+      status: ProposalStatus.ACCEPTED,
+    })
+    .populate({
+      path: 'postId',
+      populate: { path: 'userId', select: 'fullName phone governorate city' },
+    })
+    .lean()
+    .exec();
 
     if (proposals.length === 0) {
       return { data: [] };
     }
 
     const postIds = proposals
-      .map((proposal) => proposal.postId?._id)
-      .filter((value): value is Types.ObjectId => Boolean(value));
+    .map((proposal) => proposal.postId?._id)
+    .filter((value): value is Types.ObjectId => Boolean(value));
 
     const requests = await this.requestModel
-      .find({
-        postId: { $in: postIds },
-        assignedTechnician: new Types.ObjectId(technicianId),
-      })
-      .select(
-        'postId status depositAmount depositStatus preferredDate preferredTime createdAt updatedAt notes completionNote totalPrice address userId',
-      )
-      .lean()
-      .exec();
+    .find({
+      postId: { $in: postIds },
+      assignedTechnician: new Types.ObjectId(technicianId),
+    })
+    .select(
+      'postId status depositAmount depositStatus preferredDate preferredTime createdAt updatedAt notes completionNote totalPrice address userId',
+    )
+    .lean()
+    .exec();
 
     const requestByPostId = new Map(
       requests.map((request) => [request.postId?.toString(), request]),
     );
 
     const data = proposals
-      .map((proposal) => {
-        const post = proposal.postId as any;
-        if (!post?._id) return null;
+    .map((proposal) => {
+      const post = proposal.postId as any;
+      if (!post?._id) return null;
 
-        const matchedRequest = requestByPostId.get(post._id.toString());
+      const matchedRequest = requestByPostId.get(post._id.toString());
 
-        return {
-          _id: matchedRequest?._id ?? post.requestId ?? post._id,
-          status: matchedRequest?.status ?? RequestStatus.ACCEPTED,
-          depositAmount: matchedRequest?.depositAmount,
-          depositStatus: matchedRequest?.depositStatus,
-          preferredDate: matchedRequest?.preferredDate ?? post.preferredDate,
-          preferredTime: matchedRequest?.preferredTime ?? post.preferredTime,
-          createdAt: matchedRequest?.createdAt ?? proposal.createdAt,
-          updatedAt: matchedRequest?.updatedAt ?? proposal.updatedAt,
-          notes: matchedRequest?.notes ?? proposal.description ?? post.description,
-          completionNote: matchedRequest?.completionNote ?? null,
-          totalPrice: matchedRequest?.totalPrice ?? proposal.price,
-          userId: post.userId ?? null,
-          serviceId: null,
-          postId: {
-            _id: post._id,
-            title: post.title,
-            budget: post.budget,
-            acceptedProposal: {
-              _id: proposal._id,
-              estimatedTime: proposal.estimatedTime,
-              price: proposal.price,
-            },
+      return {
+        _id: matchedRequest?._id ?? post.requestId ?? post._id,
+        status: matchedRequest?.status ?? RequestStatus.ACCEPTED,
+        depositAmount: matchedRequest?.depositAmount,
+        depositStatus: matchedRequest?.depositStatus,
+        preferredDate: matchedRequest?.preferredDate ?? post.preferredDate,
+        preferredTime: matchedRequest?.preferredTime ?? post.preferredTime,
+        createdAt: matchedRequest?.createdAt ?? proposal.createdAt,
+        updatedAt: matchedRequest?.updatedAt ?? proposal.updatedAt,
+        notes:
+          matchedRequest?.notes ?? proposal.description ?? post.description,
+        completionNote: matchedRequest?.completionNote ?? null,
+        totalPrice: matchedRequest?.totalPrice ?? proposal.price,
+        userId: post.userId ?? null,
+        serviceId: null,
+        postId: {
+          _id: post._id,
+          title: post.title,
+          budget: post.budget,
+          acceptedProposal: {
+            _id: proposal._id,
+            estimatedTime: proposal.estimatedTime,
+            price: proposal.price,
           },
-          address: matchedRequest?.address ?? post.address,
-        };
-      })
-      .filter(Boolean);
+        },
+        address: matchedRequest?.address ?? post.address,
+      };
+    })
+    .filter(Boolean);
 
     return { data };
   }
 
   async findPendingCustomRequestsForTechnician(technicianId: string) {
     const proposals = await this.proposalModel
-      .find({
-        technicianId: new Types.ObjectId(technicianId),
-        status: { $in: [ProposalStatus.PENDING, ProposalStatus.ACCEPTED] },
-      })
-      .populate({
-        path: 'postId',
-        populate: { path: 'userId', select: 'fullName phone governorate city' },
-      })
-      .sort({ updatedAt: -1 })
-      .lean()
-      .exec();
+    .find({
+      technicianId: new Types.ObjectId(technicianId),
+      status: { $in: [ProposalStatus.PENDING, ProposalStatus.ACCEPTED] },
+    })
+    .populate({
+      path: 'postId',
+      populate: { path: 'userId', select: 'fullName phone governorate city' },
+    })
+    .sort({ updatedAt: -1 })
+    .lean()
+    .exec();
 
     if (proposals.length === 0) {
       return { data: [] };
     }
 
     const postIds = proposals
-      .map((proposal) => proposal.postId?._id)
-      .filter((value): value is Types.ObjectId => Boolean(value));
+    .map((proposal) => proposal.postId?._id)
+    .filter((value): value is Types.ObjectId => Boolean(value));
 
     const requests = await this.requestModel
-      .find({
-        postId: { $in: postIds },
-        assignedTechnician: new Types.ObjectId(technicianId),
-      })
-      .select(
-        'postId status depositAmount depositStatus preferredDate preferredTime createdAt updatedAt notes completionNote totalPrice address userId',
-      )
-      .lean()
-      .exec();
+    .find({
+      postId: { $in: postIds },
+      assignedTechnician: new Types.ObjectId(technicianId),
+    })
+    .select(
+      'postId status depositAmount depositStatus preferredDate preferredTime createdAt updatedAt notes completionNote totalPrice address userId',
+    )
+    .lean()
+    .exec();
 
     const requestByPostId = new Map(
       requests.map((request) => [request.postId?.toString(), request]),
     );
 
     const data = proposals
-      .map((proposal) => {
-        const post = proposal.postId as any;
-        if (!post?._id) return null;
+    .map((proposal) => {
+      const post = proposal.postId as any;
+      if (!post?._id) return null;
 
-        const matchedRequest = requestByPostId.get(post._id.toString());
-        const isWaitingClient =
-          proposal.status === ProposalStatus.PENDING && !matchedRequest;
+      const matchedRequest = requestByPostId.get(post._id.toString());
+      const isWaitingClient =
+        proposal.status === ProposalStatus.PENDING && !matchedRequest;
 
-        return {
-          _id:
-            matchedRequest?._id?.toString() ??
-            `proposal:${proposal._id.toString()}`,
-          requestId: matchedRequest?._id?.toString() ?? null,
-          chatRequestId: matchedRequest?._id?.toString() ?? null,
-          proposalId: proposal._id.toString(),
-          pendingSource: isWaitingClient ? 'proposal' : 'request',
-          status: isWaitingClient
-            ? RequestStatus.PENDING
-            : matchedRequest?.status ?? RequestStatus.ACCEPTED,
-          depositAmount: matchedRequest?.depositAmount,
-          depositStatus: matchedRequest?.depositStatus,
-          preferredDate: matchedRequest?.preferredDate ?? post.preferredDate,
-          preferredTime: matchedRequest?.preferredTime ?? post.preferredTime,
-          createdAt: matchedRequest?.createdAt ?? proposal.createdAt,
-          updatedAt: matchedRequest?.updatedAt ?? proposal.updatedAt,
-          notes:
-            matchedRequest?.notes ?? proposal.description ?? post.description,
-          completionNote: matchedRequest?.completionNote ?? null,
-          totalPrice: matchedRequest?.totalPrice ?? proposal.price,
-          userId: post.userId ?? null,
-          serviceId: null,
-          postId: {
-            _id: post._id,
-            title: post.title,
-            budget: post.budget,
-            acceptedProposal: {
-              _id: proposal._id,
-              estimatedTime: proposal.estimatedTime,
-              price: proposal.price,
-            },
+      return {
+        _id:
+          matchedRequest?._id?.toString() ??
+          `proposal:${proposal._id.toString()}`,
+        requestId: matchedRequest?._id?.toString() ?? null,
+        chatRequestId: matchedRequest?._id?.toString() ?? null,
+        proposalId: proposal._id.toString(),
+        pendingSource: isWaitingClient ? 'proposal' : 'request',
+        status: isWaitingClient
+          ? RequestStatus.PENDING
+          : matchedRequest?.status ?? RequestStatus.ACCEPTED,
+        depositAmount: matchedRequest?.depositAmount,
+        depositStatus: matchedRequest?.depositStatus,
+        preferredDate: matchedRequest?.preferredDate ?? post.preferredDate,
+        preferredTime: matchedRequest?.preferredTime ?? post.preferredTime,
+        createdAt: matchedRequest?.createdAt ?? proposal.createdAt,
+        updatedAt: matchedRequest?.updatedAt ?? proposal.updatedAt,
+        notes:
+          matchedRequest?.notes ?? proposal.description ?? post.description,
+        completionNote: matchedRequest?.completionNote ?? null,
+        totalPrice: matchedRequest?.totalPrice ?? proposal.price,
+        userId: post.userId ?? null,
+        serviceId: null,
+        postId: {
+          _id: post._id,
+          title: post.title,
+          budget: post.budget,
+          acceptedProposal: {
+            _id: proposal._id,
+            estimatedTime: proposal.estimatedTime,
+            price: proposal.price,
           },
-          address: matchedRequest?.address ?? post.address,
-        };
-      })
-      .filter(Boolean);
+        },
+        address: matchedRequest?.address ?? post.address,
+      };
+    })
+    .filter(Boolean);
 
     return { data };
   }
@@ -285,11 +358,11 @@ export class PostService {
   // ─── Get Post By Id ───────────────────────────────────────────────────────
   async findById(postId: string): Promise<PostDocument> {
     const post = await this.postModel
-      .findById(postId)
-      .populate('userId', 'fullName phone governorate city gender')
-      .populate('categoryId', 'name image')
-      .populate('acceptedProposal')
-      .exec();
+    .findById(postId)
+    .populate('userId', 'fullName phone governorate city gender')
+    .populate('categoryId', 'name image')
+    .populate('acceptedProposal')
+    .exec();
 
     if (!post) throw new NotFoundException('Post not found');
     return post;
@@ -299,36 +372,36 @@ export class PostService {
   async findMyPosts(userId: string, page = 1, limit = 10) {
     const [posts, total] = await Promise.all([
       this.postModel
-        .find({ userId: new Types.ObjectId(userId) })
-        .populate('categoryId', 'name image')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
+      .find({ userId: new Types.ObjectId(userId) })
+      .populate('categoryId', 'name image')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
       this.postModel.countDocuments({ userId: new Types.ObjectId(userId) }),
     ]);
 
     const postsWithProposals = await Promise.all(
       posts.map(async (post) => {
         const proposals = await this.proposalModel
-          .find({ postId: post._id })
-          .lean()
-          .exec();
+        .find({ postId: post._id })
+        .lean()
+        .exec();
 
         const proposalsWithTechnicianData = await Promise.all(
           proposals.map(async (proposal) => {
             const technicianUser = await this.userModel
-              .findById(proposal.technicianId)
-              .select('fullName phone governorate city gender')
-              .lean();
+            .findById(proposal.technicianId)
+            .select('fullName phone governorate city gender')
+            .lean();
 
             const technicianProfile = await this.technicianModel
-              .findOne({ userId: proposal.technicianId })
-              .select(
-                'averageRating totalReviews yearsOfExperience specialization verificationStatus personalImage',
-              )
-              .lean();
+            .findOne({ userId: proposal.technicianId })
+            .select(
+              'averageRating totalReviews yearsOfExperience specialization verificationStatus personalImage',
+            )
+            .lean();
 
             return {
               ...proposal,
@@ -340,7 +413,11 @@ export class PostService {
           }),
         );
 
-        return { ...post, proposals: proposalsWithTechnicianData ,proposalsCount: proposalsWithTechnicianData.length };
+        return {
+          ...post,
+          proposals: proposalsWithTechnicianData,
+          proposalsCount: proposalsWithTechnicianData.length,
+        };
       }),
     );
 
@@ -384,7 +461,7 @@ export class PostService {
     if (post.status !== PostStatus.OPEN)
       throw new BadRequestException('Post is no longer open');
 
-    const existing = await this.proposalModel.findOne({
+    const existing = await this.proposalModel.exists({
       postId: new Types.ObjectId(postId),
       technicianId: new Types.ObjectId(technicianId),
     });
@@ -435,59 +512,49 @@ export class PostService {
       .lean()
       .exec();
 
-    if (!post) throw new NotFoundException('Post not found');
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
 
     if (userRole === UserRole.CLIENT) {
-  const ownerId = (post.userId as any)?._id?.toString();
-  if (!ownerId || ownerId !== userId)
-    throw new ForbiddenException('Not authorized');
-}
+      const ownerId = (post.userId as any)?._id?.toString();
+
+      if (!ownerId || ownerId !== userId) {
+        throw new ForbiddenException('Not authorized');
+      }
+    }
 
     const proposals = await this.proposalModel
-      .find({ postId: new Types.ObjectId(postId) })
-      .lean()
-      .exec();
+    .find({ postId: new Types.ObjectId(postId) })
+    .lean()
+    .exec();
 
     const proposalsWithTechnicianData = await Promise.all(
       proposals.map(async (proposal) => {
-        const technicianUser = await this.userModel
-          .findById(proposal.technicianId)
-          .select('fullName phone governorate city gender')
-          .lean();
-
-        const technicianProfile = await this.technicianModel
-          .findOne({ userId: proposal.technicianId })
-          .select(
-            'averageRating totalReviews yearsOfExperience specialization verificationStatus personalImage',
-          )
-          .lean();
-
+        const technician = await this.buildTechnician(proposal.technicianId);
         const isMyProposal = proposal.technicianId.toString() === userId;
+
+        // نحذف technicianId من الـ response
+        const { technicianId, ...proposalData } = proposal;
 
         if (userRole === UserRole.TECHNICIAN) {
           return {
-            _id: proposal._id,
-            estimatedTime: proposal.estimatedTime,
-            description: proposal.description,
-            status: proposal.status,
-            createdAt: proposal.createdAt,
+            _id: proposalData._id,
+            estimatedTime: proposalData.estimatedTime,
+            description: proposalData.description,
+            status: proposalData.status,
+            createdAt: proposalData.createdAt,
             isMyProposal,
-            ...(isMyProposal && { price: proposal.price }),
-            technician: isMyProposal
-              ? {
-                  ...technicianUser,
-                  ...technicianProfile,
-                }
-              : null,
+
+            ...(isMyProposal && { price: proposalData.price }),
+
+            technician: isMyProposal ? technician : null,
           };
         }
 
         return {
-          ...proposal,
-          technician: {
-            ...technicianUser,
-            ...technicianProfile,
-          },
+          ...proposalData,
+          technician,
         };
       }),
     );
@@ -495,7 +562,7 @@ export class PostService {
     return {
       post,
       proposals: proposalsWithTechnicianData,
-      proposalsCount: proposalsWithTechnicianData.length
+      proposalsCount: proposalsWithTechnicianData.length,
     };
   }
 
@@ -675,5 +742,24 @@ export class PostService {
     // ─────────────────────────────────────────────────────────────────────────
 
     return { message: 'Post cancelled successfully' };
+  }
+
+  private async buildTechnician(technicianId: Types.ObjectId) {
+    const technicianUser = await this.userModel
+    .findById(technicianId)
+    .select('fullName phone governorate city gender')
+    .lean();
+
+    const technicianProfile = await this.technicianModel
+    .findOne({ userId: technicianId })
+    .select(
+      'averageRating totalReviews yearsOfExperience specialization verificationStatus personalImage',
+    )
+    .lean();
+
+    return {
+      ...(technicianUser || {}),
+      ...(technicianProfile || {}),
+    };
   }
 }

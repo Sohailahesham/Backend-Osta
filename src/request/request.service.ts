@@ -96,14 +96,14 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName governorate city')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name description priceRange')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName governorate city')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name description priceRange')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -120,15 +120,15 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName email')
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName phone')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName email')
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName phone')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -146,24 +146,24 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name image')
-        .populate('serviceId', 'name priceRange image')
-        .populate('assignedTechnician', 'fullName phone ')
+      .find(filter)
+      .populate('categoryId', 'name image')
+      .populate('serviceId', 'name priceRange image')
+      .populate('assignedTechnician', 'fullName phone ')
         .populate('postId', 'title budget acceptedProposal status image')
-
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .lean()
-        .exec(),
+        
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean()
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
 
     // اجمعي الـ requestIds اللي completed بس — query واحدة بدل ما تتكرر جوا الـ loop
     const completedRequestIds = data
-      .filter((r) => r.status === RequestStatus.COMPLETED)
-      .map((r) => r._id);
+    .filter((r) => r.status === RequestStatus.COMPLETED)
+    .map((r) => r._id);
 
     const reviews = completedRequestIds.length
       ? await this.reviewModel
@@ -182,10 +182,9 @@ export class RequestService {
         // الـ technician rating (موجود بالفعل)
         if (request.assignedTechnician) {
           const technician = await this.technicianModel
-            .findOne({ userId: (request.assignedTechnician as any)._id })
-            .select('averageRating yearsOfExperience totalReviews')
-            .lean();
-
+          .findOne({ userId: (request.assignedTechnician as any)._id })
+          .select('averageRating yearsOfExperience totalReviews')
+          .lean();
           result.assignedTechnician = {
             ...(request.assignedTechnician as any),
             averageRating: technician?.averageRating ?? 0,
@@ -221,18 +220,18 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('userId', 'fullName governorate city')
-        .populate('serviceId', 'name priceRange')
-        .populate({
-          path: 'postId',
-          select: 'budget acceptedProposal title',
-          populate: { path: 'acceptedProposal', select: 'estimatedTime price' },
-        })
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('userId', 'fullName governorate city')
+      .populate('serviceId', 'name priceRange')
+      .populate({
+        path: 'postId',
+        select: 'budget acceptedProposal title',
+        populate: { path: 'acceptedProposal', select: 'estimatedTime price' },
+      })
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
@@ -246,12 +245,12 @@ export class RequestService {
       throw new NotFoundException('Request not found');
 
     const request = await this.requestModel
-      .findById(requestId)
-      .populate('userId', 'fullName email ')
-      .populate('categoryId', 'name')
-      .populate('serviceId', 'name priceRange')
-      .populate('assignedTechnician', 'fullName')
-      .exec();
+    .findById(requestId)
+    .populate('userId', 'fullName email ')
+    .populate('categoryId', 'name')
+    .populate('serviceId', 'name priceRange')
+    .populate('assignedTechnician', 'fullName')
+    .exec();
 
     if (!request)
       throw new NotFoundException(`Request #${requestId} not found`);
@@ -583,14 +582,14 @@ export class RequestService {
 
     const [data, total] = await Promise.all([
       this.requestModel
-        .find(filter)
-        .populate('categoryId', 'name')
-        .populate('serviceId', 'name')
-        .populate('assignedTechnician', 'fullName')
-        .sort({ createdAt: -1 })
-        .skip((page - 1) * limit)
-        .limit(limit)
-        .exec(),
+      .find(filter)
+      .populate('categoryId', 'name')
+      .populate('serviceId', 'name')
+      .populate('assignedTechnician', 'fullName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .exec(),
       this.requestModel.countDocuments(filter),
     ]);
     return {
