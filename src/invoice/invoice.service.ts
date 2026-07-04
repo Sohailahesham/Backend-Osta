@@ -22,7 +22,7 @@ export class InvoiceService {
     @InjectModel(MainRequest.name) private requestModel: Model<RequestDocument>,
     private mailService: MailService,
     private walletService: WalletService,
-  ) {}
+  ) { }
 
   async createFromRequest(requestId: string): Promise<InvoiceDocument> {
     const request = await this.requestModel
@@ -59,6 +59,7 @@ export class InvoiceService {
     return invoice;
   }
   async markAsPaid(requestId: string): Promise<void> {
+
     let invoice = (await this.invoiceModel
       .findOne({
         requestId: new Types.ObjectId(requestId),
@@ -84,23 +85,34 @@ export class InvoiceService {
 
     if (request) {
       const client = request.userId as any;
-      await this.mailService.sendInvoiceEmail(client.email, {
-        invoiceNumber: invoice.invoiceNumber,
-        clientName: client.fullName,
-        technicianName: (request.assignedTechnician as any)?.fullName,
-        serviceName: (request.serviceId as any)?.name,
-        completionNote: request.completionNote ?? '',
-        depositAmount: invoice.depositAmount,
-        totalPrice: invoice.totalPrice,
-        remainingAmount: invoice.remainingAmount,
-        createdAt: invoice.createdAt,
-      });
       const technician = request.assignedTechnician as any;
-      await this.walletService.creditTechnician(
-        technician?._id?.toString() ?? technician?.toString(),
-        request.totalPrice,
-        requestId,
-      );
+
+      try {
+        const technicianId = technician?._id?.toString() ?? technician?.toString();
+        await this.walletService.creditTechnician(
+          technicianId,
+          request.totalPrice,
+          requestId,
+        );
+      } catch (err) {
+        console.error('Failed to credit technician wallet:', err);
+      }
+
+      try {
+        await this.mailService.sendInvoiceEmail(client.email, {
+          invoiceNumber: invoice.invoiceNumber,
+          clientName: client.fullName,
+          technicianName: technician?.fullName,
+          serviceName: (request.serviceId as any)?.name,
+          completionNote: request.completionNote ?? '',
+          depositAmount: invoice.depositAmount,
+          totalPrice: invoice.totalPrice,
+          remainingAmount: invoice.remainingAmount,
+          createdAt: invoice.createdAt,
+        });
+      } catch (err) {
+        console.error('Failed to send invoice email:', err);
+      }
     }
   }
 

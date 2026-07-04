@@ -145,7 +145,7 @@ export class AuthService {
         gender: dto.gender,
       });
 
-      await this.sendVerificationEmailToUser(user);
+      // await this.sendVerificationEmailToUser(user);
 
       return this.signTokens(user);
     } catch (error: any) {
@@ -175,7 +175,7 @@ export class AuthService {
 
       await this.technicianModel.create({ userId: user._id } as any);
       await this.walletService.createWallet(user._id.toString());
-      await this.sendVerificationEmailToUser(user);
+      // await this.sendVerificationEmailToUser(user);
       return this.signTokens(user);
     } catch (error: any) {
       if (error.code === 11000) {

@@ -300,7 +300,7 @@ export class RequestService {
 
     return {
       message:
-        'Request accepted successfully. Please pay the deposit to proceed.',
+        'Request accepted successfully. the client must pay the deposit to proceed.',
       depositAmount: request.depositAmount,
       request,
     };
