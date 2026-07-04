@@ -115,8 +115,9 @@ src/module-name/
 
 | Name | Role |
 |---|---|
-| Sohaila | Team Leader |
-| Shorouk | Backend — Payments & Invoice |
-| Nehal | Backend — Requests |
-| Hajar | Frontend |
-| Fatma | Frontend + AI |
+| Sohaila | Team Leader — MERN Full Stack |
+| Shorouk | MERN Full Stack |
+| Fatma | MERN Full Stack + AI|
+| Nehal | Backend NodeJS - NestJS  |
+| Hajar | Frontend ReactJS - NextJS |
+
