@@ -153,6 +153,8 @@ export class PaymentService {
 
       // ── REMAINING PAYMENT confirmed ──────────────────────────────────────
       if (payment.type === PaymentType.REMAINING) {
+
+
         const updatedRequest = await this.requestModel
           .findByIdAndUpdate(
             payment.requestId,
@@ -163,6 +165,8 @@ export class PaymentService {
             { new: true },
           )
           .populate('assignedTechnician', '_id');
+
+
 
         await this.invoiceService.markAsPaid(payment.requestId.toString());
 
